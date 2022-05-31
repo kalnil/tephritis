@@ -1,0 +1,269 @@
+library(car)
+library(Rmisc)
+library(ggplot2)
+library(ggfortify)
+library(vegan)
+
+setwd('/Users/kalle/Documents/Temp. Working Directory')
+
+
+#Get data
+#All flies
+fly<-read.csv('Everything_clean_nooutliers_intactwings.csv', header=T, sep=';', dec=',')
+fly$North.South<-as.factor(fly$North.South)
+fly$West.East<-as.factor(fly$West.East)
+
+#Subset data into sexes
+fly_fem<-subset(fly, Sex=="Female")
+fly_fem<-na.omit(fly_fem)
+
+fly_male<-subset(fly, Sex=="Male")
+
+## MANOVAs ##################################################
+
+#dividing MANOVAs into sex to include ovipositors and avoid multicollinearity
+
+###Females
+
+#A MANOVA tests many variables against a set of categorical variables
+
+#Set dependent variables to test in a separate object
+Dep_fem<-cbind(fly_fem$BL, fly_fem$OL, fly_fem$Wing.length, 
+               fly_fem$Wing.width, fly_fem$Melanization.ratio, fly_fem$LMPC1,
+               fly_fem$LMPC2, fly_fem$LMPC3, fly_fem$LMPC4, fly_fem$LMPC5, fly_fem$LMPC6)
+colnames(Dep_fem)<-c('BL', 'OL', 'WL', 'WW', 'MR', 'PC1', 'PC2', 'PC3', 'PC4', 'PC5', 'PC6')
+rownames(Dep_fem)<-fly_fem$File.name
+head(Dep_fem)
+
+#Test dependent against factors
+
+#Traits tested with hostrace and co-existence
+fit_fem<-manova(Dep_fem~fly_fem$Hostplant*fly_fem$Patry)
+summary(fit_fem)
+
+#Post-hoc ANOVA
+summary.aov(fit_fem)
+
+#Eta squared values
+etasq(fit_fem)
+
+#Traits tested with hostrace and transect
+fit_fem_Baltic<-manova(Dep_fem~fly_fem$Hostplant*fly_fem$Baltic)
+summary(fit_fem_Baltic)
+
+#Post-hoc ANOVA
+summary.aov(fit_fem_Baltic)
+
+#Eta squared values
+etasq(fit_fem_Baltic)
+
+#Traits tested in a three-way MANOVA including all categories (Not included in manuscript)
+fit_fem_3<-manova(Dep_fem~fly_fem$Hostplant*fly_fem$Patry*fly_fem$Baltic)
+summary(fit_fem_3)
+
+#Post-hoc ANOVA
+summary.aov(fit_fem_3)
+
+#Eta squared values
+etasq(fit_fem_3)
+
+
+####Nested MANOVA to find variance explained by different factors
+
+##Females
+
+#Test dependent traits against hostrace, transect and population nested withing hostrace*transect
+fit_fem_lh4<-manova(Dep_fem~Hostplant*Baltic+Zone%in%(Hostplant*Baltic), data=fly_fem)
+summary(fit_fem_lh4,'Wilks')
+#Calculate Wilk's partial eta: 1 - wilks^(1/df)
+
+
+##Plots
+
+
+sum_fem<-summarySE(fly_fem, measurevar='BL', groupvars=c('Zone', 'Hostplant', 'Patry', 'Baltic'))
+
+
+
+
+
+#Body length
+
+#Summarize variances
+sum_fem_BL<-summarySE(fly_fem, measurevar='BL', groupvars=c('Zone', 'Hostplant', 'Patry', 'Baltic'))
+
+#Rename populations 
+sum_fem_BL$Zone<-revalue(sum_fem_BL$Zone, c("CHES"="Sympatry", "CHFI"="Northern allopatry", 
+                                            "CHSK"="Sympatry", "CHST"="Northern allopatry", "COES"="Sympatry", "COGE"="Southern allopatry",
+                                            "COLI"="Southern allopatry", "COSK"="Sympatry"))
+
+#Reorder populations 
+sum_fem_BL$Zone <- factor(sum_fem_BL$Zone, levels = c("Northern allopatry", 
+                                                      "Sympatry", "Southern allopatry"))
+
+#Reorder transects
+sum_fem_BL$Baltic <- factor(sum_fem_BL$Baltic, levels = c("West", "East"))
+
+#Plot body length in females
+fem_BL_zone_plot<-ggplot(sum_fem_BL, aes(x=Zone, y=BL, colour=Hostplant)) + 
+  #ggtitle("Female body length by population") +
+  geom_point(size=4, aes(shape=Patry), position=position_dodge(width=0.4)) +
+  geom_errorbar(aes(ymin=BL-ci, ymax=BL+ci), width=.3, size=1.2, position=position_dodge(width=0.4)) +
+  ylab("Body length (mm)") + 
+  xlab(" ") + 
+  scale_color_manual(values = c("darkviolet","darkgreen")) +
+  geom_rect(aes(xmin = 1.5, xmax = 2.5, ymin = -Inf, ymax = Inf), colour='gray', alpha = 0.1) +
+  facet_grid(.~Baltic, scales='free', space="free") +
+  scale_x_discrete(labels = c("Northern allopatry" = "N. allo.", "Sympatry" = "Symp.", "Southern allopatry" = "S. allo.")) +
+  theme(legend.position = "none", 
+        legend.title=element_blank(), strip.text.x = element_text(size = 13),
+        axis.title.y=element_text(size = 13), axis.text.x=element_text(size = 13), axis.text.x.top = element_text(size = 13), 
+        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+        legend.text=element_text(size=8),
+        legend.spacing.y = unit(0.1, 'mm')) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) 
+fem_BL_zone_plot
+
+##Repeat for all traits
+
+#Ovipositor length
+
+sum_fem_OL<-summarySE(fly_fem, measurevar='OL', groupvars=c('Zone', 'Hostplant', 'Patry', 'Baltic'), conf.interval = 0.95, na.rm=T)
+
+sum_fem_OL$Zone<-revalue(sum_fem_OL$Zone, c("CHES"="Sympatry", "CHFI"="Northern allopatry", 
+                                            "CHSK"="Sympatry", "CHST"="Northern allopatry", "COES"="Sympatry", "COGE"="Southern allopatry",
+                                            "COLI"="Southern allopatry", "COSK"="Sympatry"))
+
+sum_fem_OL$Baltic<-as.factor(sum_fem_OL$Baltic)
+
+sum_fem_OL$Zone <- factor(sum_fem_OL$Zone, levels = c("Northern allopatry", 
+                                                      "Sympatry", "Southern allopatry"))
+
+sum_fem_OL$Baltic <- factor(sum_fem_BL$Baltic, levels = c("West", "East"))
+
+fem_OL_zone_plot<-ggplot(sum_fem_OL, aes(x=Zone, y=OL, colour=Hostplant)) + 
+  #ggtitle("Ovipositor length by population") +
+  geom_point(size=4, aes(shape=Patry), position=position_dodge(width=0.4)) +
+  geom_errorbar(aes(ymin=OL-ci, ymax=OL+ci), width=.3, size=1.2, position=position_dodge(width=0.4)) +
+  ylab("Ovipositor length (mm)") +
+  xlab(" ") + 
+  scale_color_manual(values = c("darkviolet","darkgreen")) +
+  geom_rect(aes(xmin = 1.5, xmax = 2.5, ymin = -Inf, ymax = Inf), colour='gray', alpha = 0.1) +
+  facet_grid(.~Baltic, scales='free', space="free") + 
+  scale_x_discrete(labels = c("Northern allopatry" = "N. allo.", "Sympatry" = "Symp.", "Southern allopatry" = "S. allo.")) +
+  theme(legend.position = "none", 
+        legend.title=element_blank(), strip.text.x = element_text(size = 13),
+        axis.title.y=element_text(size = 13), axis.text.x=element_text(size = 13), axis.text.x.top = element_text(size = 13), 
+        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+        legend.text=element_text(size=8),
+        legend.spacing.y = unit(0.1, 'mm')) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) 
+fem_OL_zone_plot
+
+#Wing length
+
+sum_fem_WL<-summarySE(fly_fem, measurevar='Wing.length', groupvars=c('Zone', 'Hostplant', 'Patry', 'Baltic'), na.rm=T)
+
+sum_fem_WL$Zone<-revalue(sum_fem_WL$Zone, c("CHES"="Sympatry", "CHFI"="Northern allopatry", 
+                                            "CHSK"="Sympatry", "CHST"="Northern allopatry", "COES"="Sympatry", "COGE"="Southern allopatry",
+                                            "COLI"="Southern allopatry", "COSK"="Sympatry"))
+
+sum_fem_WL$Zone <- factor(sum_fem_WL$Zone, levels = c("Northern allopatry", 
+                                                      "Sympatry", "Southern allopatry"))
+
+sum_fem_WL$Baltic <- factor(sum_fem_WL$Baltic, levels = c("West", "East"))
+
+sum_fem_WL$Baltic<-as.factor(sum_fem_WL$Baltic)
+
+fem_WL_zone_plot<-ggplot(sum_fem_WL, aes(x=Zone, y=Wing.length, colour=Hostplant)) + 
+  #ggtitle("Female wing length by population") +
+  geom_errorbar(aes(ymin=Wing.length-ci, ymax=Wing.length+ci), width=.3, size=1.2, position=position_dodge(width=0.4)) +
+  ylab("Wing length (mm)") +
+  xlab(" ") + 
+  scale_color_manual(values = c("darkviolet","darkgreen")) +
+  geom_rect(aes(xmin = 1.5, xmax = 2.5, ymin = -Inf, ymax = Inf), colour='gray', alpha = 0.1) +
+  facet_grid(.~Baltic, scales='free', space="free") +
+  geom_point(size=4, aes(shape=Patry), position=position_dodge(width=0.4)) +
+  scale_x_discrete(labels = c("Northern allopatry" = "N. allo.", "Sympatry" = "Symp.", "Southern allopatry" = "S. allo.")) +
+  theme(legend.position = "none", 
+        legend.title=element_blank(), strip.text.x = element_text(size = 13),
+        axis.title.y=element_text(size = 13), axis.text.x=element_text(size = 13), axis.text.x.top = element_text(size = 13), 
+        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+        legend.text=element_text(size=8),
+        legend.spacing.y = unit(0.1, 'mm')) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) 
+fem_WL_zone_plot
+
+#Wing width
+
+sum_fem_WW<-summarySE(fly_fem, measurevar='Wing.width', groupvars=c('Zone', 'Hostplant', 'Patry', 'Baltic'), na.rm=T)
+
+sum_fem_WW$Zone<-revalue(sum_fem_WW$Zone, c("CHES"="Sympatry", "CHFI"="Northern allopatry", 
+                                            "CHSK"="Sympatry", "CHST"="Northern allopatry", "COES"="Sympatry", "COGE"="Southern allopatry",
+                                            "COLI"="Southern allopatry", "COSK"="Sympatry"))
+
+sum_fem_WW$Zone <- factor(sum_fem_WW$Zone, levels = c("Northern allopatry", 
+                                                      "Sympatry", "Southern allopatry"))
+
+sum_fem_WW$Baltic <- factor(sum_fem_WW$Baltic, levels = c("West", "East"))
+
+sum_fem_WW$Baltic<-as.factor(sum_fem_WW$Baltic)
+
+fem_WW_zone_plot<-ggplot(sum_fem_WW, aes(x=Zone, y=Wing.width, colour=Hostplant)) + 
+  #ggtitle("Female wing width by population") +
+  geom_errorbar(aes(ymin=Wing.width-ci, ymax=Wing.width+ci), width=.3, size=1.2, position=position_dodge(width=0.4)) +
+  ylab("Wing width (mm)") +
+  xlab(" ") +
+  scale_color_manual(values = c("darkviolet","darkgreen")) +
+  geom_rect(aes(xmin = 1.5, xmax = 2.5, ymin = -Inf, ymax = Inf), colour='gray', alpha = 0.1) +
+  facet_grid(.~Baltic, scales='free', space="free") +
+  geom_point(size=4, aes(shape=Patry), position=position_dodge(width=0.4)) +
+  scale_x_discrete(labels = c("Northern allopatry" = "N. allo.", "Sympatry" = "Symp.", "Southern allopatry" = "S. allo.")) +
+  theme(legend.position = c(0.915, 0.2), 
+        legend.title=element_blank(), strip.text.x = element_text(size = 13),
+        axis.title.y=element_text(size = 13), axis.text.x=element_text(size = 13), axis.text.x.top = element_text(size = 13), 
+        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+        legend.text=element_text(size=7),
+        legend.spacing.y = unit(0.1, 'mm')) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+fem_WW_zone_plot
+
+#Melanisation ratio
+
+sum_fem_MR<-summarySE(fly_fem, measurevar='Melanization.ratio', groupvars=c('Zone', 'Hostplant', 'Patry', 'Baltic'), na.rm=T)
+
+sum_fem_MR$Zone<-revalue(sum_fem_MR$Zone, c("CHES"="Sympatry", "CHFI"="Northern allopatry", 
+                                            "CHSK"="Sympatry", "CHST"="Northern allopatry", "COES"="Sympatry", "COGE"="Southern allopatry",
+                                            "COLI"="Southern allopatry", "COSK"="Sympatry"))
+
+sum_fem_MR$Zone <- factor(sum_fem_MR$Zone, levels = c("Northern allopatry", 
+                                                      "Sympatry", "Southern allopatry"))
+
+sum_fem_MR$Baltic <- factor(sum_fem_MR$Baltic, levels = c("West", "East"))
+
+sum_fem_MR$Baltic<-as.factor(sum_fem_MR$Baltic)
+
+fem_MR_zone_plot<-ggplot(sum_fem_MR, aes(x=Zone, y=Melanization.ratio, colour=Hostplant)) + 
+  #ggtitle("Female melanization ratio by population") +
+  geom_errorbar(aes(ymin=Melanization.ratio-ci, ymax=Melanization.ratio+ci), width=.3, size=1.2, position=position_dodge(width=0.4)) +
+  ylab("Melanisation ratio (%)") +
+  xlab(" ") +
+  scale_color_manual(values = c("darkviolet","darkgreen")) +
+  geom_rect(aes(xmin = 1.5, xmax = 2.5, ymin = -Inf, ymax = Inf), colour='gray', alpha = 0.1) +
+  facet_grid(.~Baltic, scales='free', space="free") +
+  geom_point(size=4, aes(shape=Patry), position=position_dodge(width=0.4))+
+  scale_x_discrete(labels = c("Northern allopatry" = "N. allo.", "Sympatry" = "Symp.", "Southern allopatry" = "S. allo.")) +
+  theme(legend.position = c(0.91, 0.16), 
+        legend.title=element_blank(), 
+        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+        legend.text=element_text(size=10),
+        legend.spacing.y = unit(0.1, 'mm'))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))  
+fem_MR_zone_plot
+
+###Repeat for males, but without ovipositor
