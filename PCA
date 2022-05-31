@@ -1,0 +1,283 @@
+library(car)
+library(Rmisc)
+library(ggplot2)
+library(ggfortify)
+library(vegan)
+
+setwd('/Users/kalle/Documents/Temp. Working Directory')
+
+
+#Get data
+#All flies
+fly<-read.csv('Everything_clean_nooutliers_intactwings.csv', header=T, sep=';', dec=',')
+fly$North.South<-as.factor(fly$North.South)
+fly$West.East<-as.factor(fly$West.East)
+
+#Subset data into sexes
+fly_fem<-subset(fly, Sex=="Female")
+fly_fem<-na.omit(fly_fem)
+
+fly_male<-subset(fly, Sex=="Male")
+
+
+## PCA ##################################################
+
+##PCA with both sexes (Not in manuscript)
+
+#Set data
+pca_fly_both<-fly[ ,c(8, 10:11, 14:20)] #Subset of data to be included in PCA
+pca_fly_both_big<-fly[ , c(1:8, 10:20)] #Subset of data to describe PCA
+
+#Run analysis
+pca_fly<-prcomp(pca_fly_both, scale.=T, center=T) #PCA on both sexes
+summary(pca_fly)
+
+#Find amount of important principal components with a broken stick analysis
+bstick(pca_fly)
+screeplot(pca_fly, bstick=T, type='lines', main=' ')
+
+#Plot PCA with loadings and legend
+autoplot(pca_fly, data=pca_fly_both_big, 
+         colour='Hostplant', shape='Patry', size = 2, loadings=T, 
+         loadings.label=T, loadings.label.size=4, loadings.label.colour='black', 
+         loadings.colour='black', loadings.label.vjust = 1) +
+         scale_color_manual(values = c("darkviolet","darkgreen")) +
+          theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), panel.border = element_rect(fill=NA,color="black", size=1, linetype="solid"), 
+          legend.position = c(0.12, 0.12), 
+          legend.title=element_blank(), strip.text.x = element_text(size = 13),
+          axis.title.y=element_text(size = 13), axis.text.x=element_text(size = 13), axis.text.x.top = element_text(size = 13), 
+          legend.text=element_text(size=10),
+          legend.spacing.y = unit(0.1, 'mm'))
+
+
+##GLMs on principal components (Not in manuscript)
+
+pca_fly_scores<-pca_fly$x #Grab scores from PCA
+
+#Attach scores to descriptive data
+pca_fly_both_big$PC1<-pca_fly_scores[,1]
+pca_fly_both_big$PC2<-pca_fly_scores[,2]
+pca_fly_both_big$PC3<-pca_fly_scores[,3]
+pca_fly_both_big$PC4<-pca_fly_scores[,4]
+
+#Run analysis
+glmPC1Host<-lm(PC1~Hostplant, 
+               data=pca_fly_both_big)
+
+confint(glmPC1Host)
+summary(glmPC1Host)
+
+#Repeat for all important PCs
+
+glmPC2Host<-lm(PC2~Hostplant, 
+               data=pca_fly_both_big)
+
+confint(glmPC2Host)
+summary(glmPC2Host)
+
+glmPC3Host<-glm(PC3~Hostplant, 
+                data=pca_fly_both_big)
+
+confint(glmPC3Host)
+summary(glmPC3Host)
+
+glmPC4Host<-glm(PC4~Hostplant, 
+                data=pca_fly_both_big)
+
+confint(glmPC4Host)
+summary(glmPC4Host)
+
+##PCA including both sexes, only wing shape
+
+#Set data
+pca_LM_both<-fly[ ,15:20] #Subset of data to be included in PCA
+pca_LM_big<-fly[ , c(1:8, 10:20)] #Subset of data to describe PCA
+
+
+#Run analysis
+pca_LM<-prcomp(pca_LM_both, scale.=T, center=T) #PCA on both sexes, only wing shape
+summary(pca_LM)
+
+autoplot(pca_LM, data=pca_LM_big, 
+         colour='Hostplant', shape='Patry', size = 2, loadings=T, 
+         loadings.label=T, loadings.label.size=4, loadings.label.colour='black', 
+         loadings.colour='black', loadings.label.vjust = 1) +
+  scale_color_manual(values = c("darkviolet","darkgreen")) +
+  theme(legend.position = c(0.008, 0.12), 
+        #legend.background = element_rect(fill="lightblue", size=0.5, linetype="solid"), 
+        legend.title=element_blank(), 
+        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid") )
+
+##PCA females
+
+#Set data
+pca_fly_fem<-fly_fem[ ,c(8:11, 14:20)] #Subset of data to be included in PCA
+pca_fly_fem_big<-fly_fem[ , c(1:20, 132)] #Subset of data to describe PCA
+
+#Run analysis
+pca_fly_fem<-prcomp(pca_fly_fem, scale.=T, center=T) #PCA on females
+summary(pca_fly_fem)
+
+#Find amount of important principal components with a broken stick analysis
+screeplot(pca_fly_fem, bstick=T, type='lines', main=' ')
+
+
+
+pca_fly_fem_scores<-pca_fly_fem$x #Grab scores from PCA
+
+#Attach scores to descriptive data
+pca_fly_fem_big$PC1<-pca_fly_fem_scores[,1]
+pca_fly_fem_big$PC2<-pca_fly_fem_scores[,2]
+pca_fly_fem_big$PC3<-pca_fly_fem_scores[,3]
+pca_fly_fem_big$PC4<-pca_fly_fem_scores[,4]
+
+#Combine some categories in dataset to add more information to PCA
+pca_fly_fem_big$Pop<-paste(pca_fly_fem_big$Patry, pca_fly_fem_big$Baltic)
+
+#Plot female PCA
+autoplot(pca_fly_fem, data=pca_fly_fem_big, 
+         colour='Hostplant', shape='Pop', size = 3, loadings=F, 
+         loadings.label=F, loadings.label.size=4, loadings.label.colour='black', 
+         loadings.colour='black', loadings.label.vjust = 1) +
+         scale_color_manual(values = c("darkviolet","darkgreen")) +
+         scale_shape_manual(values = c(1, 16, 2,17)) +
+         ggtitle("Female flies") +
+         theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), panel.border = element_rect(fill=NA,color="black", size=1, linetype="solid"), 
+          legend.position = c(0.14, 0.15), title = element_text(size=16),
+          legend.title=element_blank(), axis.title.x = element_text(size = 16),
+          axis.title.y=element_text(size = 16), axis.text.y=element_text(size = 16), 
+          legend.text=element_text(size=13), axis.text.x=element_text(size = 16),
+          legend.spacing.y = unit(0.1, 'mm'))
+
+
+##GLMs on principal components (Not in manuscript)
+
+glmPC1Host_fem<-lm(PC1~Hostplant, 
+                   data=pca_fly_fem_big)
+
+confint(glmPC1Host_fem)
+summary(glmPC1Host_fem)
+
+glmPC2Host_fem<-lm(PC2~Hostplant, 
+                   data=pca_fly_fem_big)
+
+confint(glmPC2Host_fem)
+summary(glmPC2Host_fem)
+
+glmPC3Host_fem<-lm(PC3~Hostplant, 
+                   data=pca_fly_fem_big)
+
+confint(glmPC3Host_fem)
+summary(glmPC3Host_fem)
+
+glmPC4Host_fem<-lm(PC4~Hostplant, 
+                   data=pca_fly_fem_big)
+
+confint(glmPC4Host_fem)
+summary(glmPC4Host_fem)
+
+#Plot PC1 differences between host plants (not in manuscript)
+
+#Grab PC1 from dataset to get variance
+PCA1_fem_sum<-summarySE(pca_fly_fem_big, measurevar='PC1', groupvars=c('Hostplant'))
+
+#Plot PC1 of the hostplants
+pc1_fem_plot<-ggplot(PCA1_fem_sum, aes(x=Hostplant, y=PC1, colour=Hostplant, group = 1)) + 
+  geom_errorbar(aes(ymin=PC1-se, ymax=PC1+se), width=.2, size=1, data=PCA1_fem_sum) +
+  ylab("PC1") + 
+  xlab(" ") + 
+  scale_color_manual(values = c("darkviolet","darkgreen")) +
+  scale_x_discrete(labels = c("Northern allopatry" = "N. allo.", "Sympatry" = "Symp.", "Southern allopatry" = "S. allo.")) +
+  geom_point(size=4) +
+  theme(legend.position = "none", 
+        legend.title=element_blank(), strip.text.x = element_text(size = 13),
+        axis.title.y=element_text(size = 13), axis.text.x=element_text(size = 13), axis.text.x.top = element_text(size = 13), 
+        panel.border = element_rect(fill=NA,color="black", size=1, linetype="solid"), 
+        legend.text=element_text(size=8),
+        legend.spacing.y = unit(0.1, 'mm')) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank()) 
+pc1_fem_plot
+
+##Repeat procedure for males
+
+##PCA males
+pca_fly_male<-fly_male[ ,c(8, 10:11, 14:20)]
+pca_fly_male_big<-fly_male[ , c(1:8,10:20, 132)]
+
+pca_fly_male<-prcomp(pca_fly_male, scale.=T, center=T)
+summary(pca_fly_male)
+
+screeplot(pca_fly_male, bstick=T, type='lines', main=' ')
+
+pca_fly_male_scores<-pca_fly_male$x
+
+pca_fly_male_big$PC1<-pca_fly_male_scores[,1]
+pca_fly_male_big$PC2<-pca_fly_male_scores[,2]
+pca_fly_male_big$PC3<-pca_fly_male_scores[,3]
+pca_fly_male_big$PC4<-pca_fly_male_scores[,4]
+
+pca_fly_male_big$Pop<-paste(pca_fly_male_big$Patry, pca_fly_male_big$Baltic)
+
+PCA1_male_sum<-summarySE(pca_fly_male_big, measurevar='PC1', groupvars=c('Hostplant'))
+
+autoplot(pca_fly_male, data=pca_fly_male_big, 
+         colour='Hostplant', shape='Pop', size = 3, loadings=F, 
+         loadings.label=F, loadings.label.size=4, loadings.label.colour='black', 
+         loadings.colour='black', loadings.label.vjust = 1) +
+  scale_color_manual(values = c("darkviolet","darkgreen")) +
+  scale_shape_manual(values = c(1, 16, 2,17)) +
+  ggtitle("Male flies") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), panel.border = element_rect(fill=NA,color="black", size=1, linetype="solid"), 
+        legend.position = c(0.14, 0.15), title = element_text(size=16),
+        legend.title=element_blank(), axis.title.x = element_text(size = 16),
+        axis.title.y=element_text(size = 16), axis.text.y=element_text(size = 16), 
+        legend.text=element_text(size=13), axis.text.x=element_text(size = 16),
+        legend.spacing.y = unit(0.1, 'mm'))
+
+pc1_male_plot<-ggplot(PCA1_male_sum, aes(x=Hostplant, y=PC1, colour=Hostplant, group = 1)) + 
+  geom_errorbar(aes(ymin=PC1-se, ymax=PC1+se), width=.2, size=1, data=PCA1_male_sum) +
+  ylab("PC1") + 
+  xlab(" ") + 
+  scale_color_manual(values = c("darkviolet","darkgreen")) +
+  scale_x_discrete(labels = c("Northern allopatry" = "N. allo.", "Sympatry" = "Symp.", "Southern allopatry" = "S. allo.")) +
+  geom_point(size=4) +
+  theme(legend.position = "none", 
+        #legend.background = element_rect(fill="lightblue", size=0.5, linetype="solid"), 
+        legend.title=element_blank(), strip.text.x = element_text(size = 13),
+        axis.title.y=element_text(size = 13), axis.text.x=element_text(size = 13), axis.text.x.top = element_text(size = 13), 
+        panel.border = element_rect(fill=NA,color="black", size=1, linetype="solid"), 
+        legend.text=element_text(size=8),
+        legend.spacing.y = unit(0.1, 'mm')) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank()) 
+pc1_male_plot
+
+glmPC1Host_male<-lm(PC1~Hostplant, 
+                    data=pca_fly_male_big)
+
+confint(glmPC1Host_male)
+summary(glmPC1Host_male)
+
+glmPC2Host_male<-lm(PC2~Hostplant, 
+                    data=pca_fly_male_big)
+
+confint(glmPC2Host_male)
+summary(glmPC2Host_male)
+
+glmPC3Host_male<-lm(PC3~Hostplant, 
+                    data=pca_fly_male_big)
+
+confint(glmPC3Host_male)
+summary(glmPC3Host_male)
+
+glmPC4Host_male<-lm(PC4~Hostplant, 
+                    data=pca_fly_male_big)
+
+confint(glmPC4Host_male)
+summary(glmPC4Host_male)
+
+
