@@ -1,0 +1,746 @@
+####LDA
+
+library(klaR)
+library(caret)
+library(boot)
+library(ellipse)
+library(cowplot)
+
+setwd('/Users/kalle/Documents/Temp. Working Directory')
+
+#dataset with one wing per individual
+#removed outliers due to dirt on photo (156b, 298b, 281a, 186a)
+#removed outliers due to frost damage on wing (26a, 4b, 10b)
+#removed all individuals with any missing landmark
+fly<-read.csv('Everything_clean_nooutliers_intactwings.csv', header=T, sep=';', dec=',')
+
+summary(fly_fem)
+fly_fem<-subset(fly, Sex=='Female')
+fly_fem_east<-subset(fly_fem, Baltic=='East')
+fly_fem_west<-subset(fly_fem, Baltic=='West')
+fly_fem_allo<-subset(fly_fem, Patry=='Allopatry')
+fly_fem_sym<-subset(fly_fem, Patry=='Sympatry')
+
+lda_fly_fem<-fly_fem[ ,c(8:11, 14:20)]
+summary(lda_fly_fem)
+lda_fly_fem$group<-as.factor(paste(fly_fem$Hostplant, fly_fem$Patry))
+lda_fly_fem<-na.omit(lda_fly_fem)
+head(lda_fly_fem)
+fly_fem_fit<-lda(group~., data=lda_fly_fem)
+fly_fem_fit
+
+
+fly_fem_lda_values<-predict(fly_fem_fit)
+
+fem_datPred<-data.frame(group=fly_fem_lda_values$class, fly_fem_lda_values$x)
+fem_datEll<- data.frame() 
+
+for(g in levels(fem_datPred$group)){ 
+fem_datEll <- rbind(fem_datEll, cbind(as.data.frame(with(fem_datPred[fem_datPred$group==g,], ellipse(cor(LD1, LD2), 
+                                         scale=c(sd(LD1),sd(LD2)), 
+                                         centre=c(mean(LD1),mean(LD2))))),group=g)) 
+} 
+
+ggplot(fem_datPred, aes(x=LD1, y=LD2, col=group) ) + geom_point( size = 4, aes(color = group))+theme_bw()+geom_path(data=fem_datEll,aes(x=x,y=y,color=group),size=1,linetype=2)  +
+ggtitle("all")
+
+fem_lda_frame<-data.frame(group=lda_fly_fem[,12], lda=fly_fem_lda_values$x)
+ggplot(fem_lda_frame) + geom_point(aes(lda.LD1, lda.LD2, colour = group), size=2)
+
+partimat(group~BL+OL+Wing.length+Wing.width, data=lda_fly_fem, method='lda')
+
+fly_fem_lda_predict<-train(group~., method='lda', data=lda_fly_fem)
+confusionMatrix(lda_fly_fem$group, predict(fly_fem_lda_predict, lda_fly_fem))
+
+#################east
+
+lda_fly_fem_east<-fly_fem_east[ ,c(8:11, 14:20)]
+lda_fly_fem_east$group<-as.factor(paste(fly_fem_east$Hostplant, fly_fem_east$Patry))
+lda_fly_fem_east<-na.omit(lda_fly_fem_east)
+head(lda_fly_fem_east)
+dim(lda_fly_fem_east)
+lda_fly_fem_east$group<-revalue(lda_fly_fem_east$group,
+    c("Heterophyllum Sympatry"="CH-flies Sympatry",
+      "Heterophyllum Allopatry"="CH-flies Allopatry",
+      "Oleraceum Sympatry"="CO-flies Sympatry",
+      "Oleraceum Allopatry"="CO-flies Allopatry"))
+
+
+fly_fem_east_fit<-lda(group~., data=lda_fly_fem_east)
+fly_fem_east_fit
+str(fly_fem_east_fit)
+
+fly_fem_east_lda_values<-predict(fly_fem_east_fit)
+
+
+
+
+
+fem_east_datPred<-data.frame(group=fly_fem_east_lda_values$class, fly_fem_east_lda_values$x)
+
+fem_east_datEll<- data.frame() 
+for(g in levels(fem_east_datPred$group)){ 
+fem_east_datEll <- rbind(fem_east_datEll, cbind(as.data.frame(with(fem_east_datPred[fem_east_datPred$group==g,], ellipse(cor(LD1, LD2), 
+                                         scale=c(sd(LD1),sd(LD2)), 
+                                         centre=c(mean(LD1),mean(LD2))))),group=g)) 
+} 
+
+plotx<-ggplot(fem_east_datPred, aes(x=LD1, y=LD2, col=group) ) + geom_point( size = 4, aes(color = group))+theme_bw()+geom_path(data=fem_east_datEll,aes(x=x,y=y,color=group),size=1,linetype=2)  +
+ggtitle(" ") + ylab("LD2") + xlab("LD1") 
++panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid")
+
+
+femlda_east_plot<-ggplot(fem_east_datPred, aes(x=LD1, y=LD2, col=group)) +
+	geom_point( size = 4, aes(color = group,shape=group))+
+	theme_bw() + 
+	geom_path(data=fem_east_datEll,aes(x=x,y=y,color=group),size=1,linetype=2) +
+  #geom_point(size=4, aes(shape=group)) +
+  scale_shape_manual(values = c(16, 17, 16, 17)) +
+	ggtitle("Eastern female flies") +
+	ylab("Linear Discriminant Axis 2") +
+	xlab("Linear Discriminant Axis 1") +
+	scale_color_manual(values = c("darkviolet","violet", "darkgreen", "green")) +
+	theme(axis.text.x = element_text(angle = 0), legend.position = c(0.84, 0.129), 
+		panel.border = element_rect(fill=NA,color="black", size=1, linetype="solid"),
+		legend.title=element_blank(),
+		legend.text=element_text(size=8),
+      	#legend.spacing.y = unit(0.01, 'mm'),
+      	panel.grid.major=element_blank(),
+      	panel.grid.minor=element_blank(),
+		axis.title.x=element_text(size=14), axis.title.y=element_text(size=14),
+		title = element_text(size = 16))
+femlda_east_plot
+
+
+
+
+
+
+fem_east_lda_frame<-data.frame(group=lda_fly_fem_east[,12], lda=fly_fem_east_lda_values$x)
+ggplot(test) + geom_point(aes(lda.LD1, lda.LD2, colour = group), size=2) + 
+	stat_ellipse()
+
+fly_fem_east_lda_predict<-train(group~., method='lda', data=lda_fly_fem_east, na.omit=T)
+#east to east
+confusionMatrix(lda_fly_fem_east$group, predict(fly_fem_east_lda_predict, lda_fly_fem_east))
+#west to east
+confusionMatrix(lda_fly_fem_east$group, predict(fly_fem_west_lda_predict, lda_fly_fem_east))
+
+####################west
+
+lda_fly_fem_west<-fly_fem_west[ ,c(8:11, 14:20)]
+lda_fly_fem_west$group<-as.factor(paste(fly_fem_west$Hostplant, fly_fem_west$Patry))
+lda_fly_fem_west<-na.omit(lda_fly_fem_west)
+head(lda_fly_fem_west)
+dim(lda_fly_fem_west)
+
+fly_fem_west_fit<-lda(group~., data=lda_fly_fem_west)
+fly_fem_west_fit
+str(fly_fem_west_fit)
+
+fly_fem_west_lda_values<-predict(fly_fem_west_fit)
+
+
+
+
+
+fem_west_datPred<-data.frame(group=fly_fem_west_lda_values$class, fly_fem_west_lda_values$x)
+
+fem_west_datEll<- data.frame() 
+for(g in levels(fem_west_datPred$group)){ 
+fem_west_datEll <- rbind(fem_west_datEll, cbind(as.data.frame(with(fem_west_datPred[fem_west_datPred$group==g,], ellipse(cor(LD1, LD2), 
+                                         scale=c(sd(LD1),sd(LD2)), 
+                                         centre=c(mean(LD1),mean(LD2))))),group=g)) 
+} 
+
+ggplot(fem_west_datPred, aes(x=LD1, y=LD2, col=group) ) + geom_point( size = 4, aes(color = group))+theme_bw()+geom_path(data=fem_west_datEll,aes(x=x,y=y,color=group),size=1,linetype=2)  +
+ggtitle("west")
+
+
+femlda_west_plot<-ggplot(fem_west_datPred, aes(x=LD1, y=LD2, col=group)) +
+  geom_point( size = 4, aes(color = group,shape=group))+
+  theme_bw() + 
+  geom_path(data=fem_west_datEll,aes(x=x,y=y,color=group),size=1,linetype=2) +
+  #geom_point(size=4, aes(shape=group)) +
+  scale_shape_manual(values = c(16, 17, 16, 17)) +
+	ggtitle("Western female flies") +
+	ylab("Linear Discriminant 2") +
+	xlab("Linear Discriminant 1") +
+	scale_color_manual(values = c("darkviolet","violet", "darkgreen", "green")) +
+	theme(axis.text.x = element_text(angle = 0), legend.position = "none", 
+	 panel.border = element_rect(fill=NA,color="black", size=1, linetype="solid"),
+      	panel.grid.major=element_blank(),
+      	panel.grid.minor=element_blank(),
+	      axis.title.x=element_text(size=14), axis.title.y=element_text(size=14),
+	      title = element_text(size = 16))
+femlda_west_plot
+
+
+
+
+
+fem_west_lda_frame<-data.frame(group=lda_fly_fem_west[,12], lda=fly_fem_west_lda_values$x)
+ggplot(fem_west_lda_frame) + geom_point(aes(lda.LD1, lda.LD2, colour = group), size=2)
+
+fem_east_lda_frame<-data.frame(group=lda_fly_fem_east[,12], lda=fly_fem_east_lda_values$x)
+ggplot() + geom_point(aes(lda.LD1, lda.LD2, colour = group), size=2)
+
+partimat(Zone~BL+OL+Wing.length+Wing.width, data=lda_fly_fem_west, method='lda')
+
+
+fly_fem_west_lda_predict<-train(group~., method='lda', data=lda_fly_fem_west, na.omit=T)
+#west to west
+confusionMatrix(lda_fly_fem_west$group, predict(fly_fem_west_lda_predict, lda_fly_fem_west))
+#east to west
+confusionMatrix(lda_fly_fem_west$group, predict(fly_fem_east_lda_predict, lda_fly_fem_west))
+
+########## HR within east
+
+lda_fly_fem_HR<-fly_fem[ ,c(8:11, 14:20)]
+head(lda_fly_fem_HR)
+lda_fly_fem_HR$group<-as.factor(paste(fly_fem$Hostplant, fly_fem$Baltic))
+lda_fly_fem_HR<-na.omit(lda_fly_fem_HR)
+head(lda_fly_fem_HR)
+dim(lda_fly_fem_HR)
+lda_fly_fem_HR$group<-revalue(lda_fly_fem_HR$group,
+                                c("Heterophyllum East"="Eastern CH-flies",
+                                  "Heterophyllum West"="Western CH-flies",
+                                  "Oleraceum East"="Eastern CO-flies",
+                                  "Oleraceum West"="Western CO-flies"))
+
+
+fly_fem_HR_fit<-lda(group~., data=lda_fly_fem_HR)
+fly_fem_HR_fit
+str(fly_fem_HR_fit)
+
+fly_fem_HR_lda_values<-predict(fly_fem_HR_fit)
+
+
+
+
+
+fem_HR_datPred<-data.frame(group=fly_fem_HR_lda_values$class, fly_fem_HR_lda_values$x)
+
+fem_HR_datEll<- data.frame() 
+for(g in levels(fem_HR_datPred$group)){ 
+  fem_HR_datEll <- rbind(fem_HR_datEll, cbind(as.data.frame(with(fem_HR_datPred[fem_HR_datPred$group==g,], ellipse(cor(LD1, LD2), 
+                                                                                                                           scale=c(sd(LD1),sd(LD2)), 
+                                                                                                                           centre=c(mean(LD1),mean(LD2))))),group=g)) 
+} 
+
+plotx<-ggplot(fem_east_datPred, aes(x=LD1, y=LD2, col=group) ) + geom_point( size = 4, aes(color = group))+theme_bw()+geom_path(data=fem_east_datEll,aes(x=x,y=y,color=group),size=1,linetype=2)  +
+  ggtitle(" ") + ylab("LD2") + xlab("LD1") 
++panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid")
+
+
+femlda_east_plot<-ggplot(fem_east_datPred, aes(x=LD1, y=LD2, col=group)) +
+  geom_point( size = 4, aes(color = group,shape=group))+
+  theme_bw() + 
+  geom_path(data=fem_east_datEll,aes(x=x,y=y,color=group),size=1,linetype=2) +
+  #geom_point(size=4, aes(shape=group)) +
+  scale_shape_manual(values = c(16, 17, 16, 17)) +
+  ggtitle("Eastern female flies") +
+  ylab("Linear Discriminant Axis 2") +
+  xlab("Linear Discriminant Axis 1") +
+  scale_color_manual(values = c("darkviolet","violet", "darkgreen", "green")) +
+  theme(axis.text.x = element_text(angle = 0), legend.position = c(0.84, 0.129), 
+        panel.border = element_rect(fill=NA,color="black", size=1, linetype="solid"),
+        legend.title=element_blank(),
+        legend.text=element_text(size=8),
+        #legend.spacing.y = unit(0.01, 'mm'),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        axis.title.x=element_text(size=14), axis.title.y=element_text(size=14),
+        title = element_text(size = 16))
+femlda_east_plot
+
+
+
+
+
+
+fem_east_lda_frame<-data.frame(group=lda_fly_fem_east[,12], lda=fly_fem_east_lda_values$x)
+ggplot(test) + geom_point(aes(lda.LD1, lda.LD2, colour = group), size=2) + 
+  stat_ellipse()
+
+fly_fem_HR_lda_predict<-train(group~., method='lda', data=lda_fly_fem_HR, na.omit=T)
+
+confusionMatrix(lda_fly_fem_HR$group, predict(fly_fem_HR_lda_predict, lda_fly_fem_HR))
+
+
+
+
+
+
+
+
+
+###hists
+str(fem_west_datPred)
+
+femlda_westCHsym<-subset(fem_west_datPred, group=='Heterophyllum Sympatry')
+femlda_westCOsym<-subset(fem_west_datPred, group=='Oleraceum Sympatry')
+femlda_westCHallo<-subset(fem_west_datPred, group=='Heterophyllum Allopatry')
+femlda_westCOallo<-subset(fem_west_datPred, group=='Oleraceum Allopatry')
+
+femlda_westCHsym$histwest<-'CHsymW'
+femlda_westCOsym$histwest<-'COsymW'
+femlda_westCHallo$histwest<-'CHalloW'
+femlda_westCOallo$histwest<-'COalloW'
+
+histwest2<-rbind(femlda_westCHsym, femlda_westCOsym, femlda_westCHallo, femlda_westCOallo)
+
+west1plot<-ggplot(histwest2, aes(LD1, fill=group, col=group))+geom_density(alpha=0.2)+theme_bw() +
+scale_fill_manual(values = c("darkviolet","violet", "darkgreen", "green"))+
+scale_color_manual(values = c("darkviolet","violet", "darkgreen", "green"))+
+theme(axis.text.x = element_text(angle = 0), legend.position = c(0.88, 0.9), 
+		panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"),
+		legend.title=element_blank(),
+		legend.text=element_text(size=8),
+      	legend.spacing.y = unit(0.1, 'mm'),
+      	panel.grid.major=element_blank(),
+      	panel.grid.minor=element_blank())
+
+west2plot<-ggplot(histwest2, aes(LD2, fill=group, col=group))+geom_density(alpha=0.2)+theme_bw() +
+scale_fill_manual(values = c("darkviolet","violet", "darkgreen", "green"))+
+scale_color_manual(values = c("darkviolet","violet", "darkgreen", "green"))+
+theme(axis.text.x = element_text(angle = 0), legend.position = c(0.88, 0.9), 
+		panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"),
+		legend.title=element_blank(),
+		legend.text=element_text(size=8),
+      	legend.spacing.y = unit(0.1, 'mm'),
+      	panel.grid.major=element_blank(),
+      	panel.grid.minor=element_blank())
+
+
+
+femlda_eastCHsym<-subset(fem_east_datPred, group=='Heterophyllum Sympatry')
+femlda_eastCOsym<-subset(fem_east_datPred, group=='Oleraceum Sympatry')
+femlda_eastCHallo<-subset(fem_east_datPred, group=='Heterophyllum Allopatry')
+femlda_eastCOallo<-subset(fem_east_datPred, group=='Oleraceum Allopatry')
+
+femlda_eastCHsym$histeast<-'CHsymE'
+femlda_eastCOsym$histeast<-'COsymE'
+femlda_eastCHallo$histeast<-'CHalloE'
+femlda_eastCOallo$histeast<-'COalloE'
+
+histeast2<-rbind(femlda_eastCHsym, femlda_eastCOsym, femlda_eastCHallo, femlda_eastCOallo)
+
+east1plot<-ggplot(histeast2, aes(LD1, fill=group, col=group))+geom_density(alpha=0.2)+theme_bw() +
+scale_fill_manual(values = c("darkviolet","violet", "darkgreen", "green"))+
+scale_color_manual(values = c("darkviolet","violet", "darkgreen", "green"))+
+theme(axis.text.x = element_text(angle = 0), legend.position = c(0.87, 0.90), 
+		panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"),
+		legend.title=element_blank(),
+		legend.text=element_text(size=8),
+      	legend.spacing.y = unit(0.1, 'mm'),
+      	panel.grid.major=element_blank(),
+      	panel.grid.minor=element_blank())
+
+
+east2plot<-ggplot(histeast2, aes(LD2, fill=group, col=group))+geom_density(alpha=0.2)+theme_bw() +
+scale_fill_manual(values = c("darkviolet","violet", "darkgreen", "green"))+
+scale_color_manual(values = c("darkviolet","violet", "darkgreen", "green"))+
+theme(axis.text.x = element_text(angle = 0), legend.position = c(0.87, 0.90), 
+		panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"),
+		legend.title=element_blank(),
+		legend.text=element_text(size=8),
+      	legend.spacing.y = unit(0.1, 'mm'),
+      	panel.grid.major=element_blank(),
+      	panel.grid.minor=element_blank())
+
+
+
+##grouped plots
+
+
+plot_grid(femlda_east_plot, east1plot, east2plot, labels ='AUTO', ncol=1)
+plot_grid(femlda_west_plot, west1plot, west2plot, labels ='AUTO', ncol=1)
+
+
+
+
+plot_grid(fem_OL_host_plot, fem_OL_int_plot, fem_OL_zone_plot, 
+          fem_WL_host_plot, fem_WL_int_plot, fem_WL_zone_plot, labels ='AUTO', ncol=3)
+
+################allo
+
+
+lda_fly_fem_allo<-fly_fem_allo[ ,c(8:11, 14:20)]
+lda_fly_fem_allo$group<-as.factor(paste(fly_fem_allo$Hostplant, fly_fem_allo$Baltic))
+lda_fly_fem_allo<-na.omit(lda_fly_fem_allo)
+head(lda_fly_fem_allo)
+dim(lda_fly_fem_allo)
+summary(lda_fly_fem_allo)
+
+fly_fem_allo_fit<-lda(group~., data=lda_fly_fem_allo)
+fly_fem_allo_fit
+str(fly_fem_allo_fit)
+
+fly_fem_allo_lda_values<-predict(fly_fem_allo_fit)
+
+
+
+
+
+fem_allo_datPred<-data.frame(group=fly_fem_allo_lda_values$class, fly_fem_allo_lda_values$x)
+
+fem_allo_datEll<- data.frame() 
+for(g in levels(fem_allo_datPred$group)){ 
+fem_allo_datEll <- rbind(fem_allo_datEll, cbind(as.data.frame(with(fem_allo_datPred[fem_allo_datPred$group==g,], ellipse(cor(LD1, LD2), 
+                                         scale=c(sd(LD1),sd(LD2)), 
+                                         centre=c(mean(LD1),mean(LD2))))),group=g)) 
+} 
+
+ggplot(fem_allo_datPred, aes(x=LD1, y=LD2, col=group) ) + geom_point( size = 4, aes(color = group))+theme_bw()+geom_path(data=fem_allo_datEll,aes(x=x,y=y,color=group),size=1,linetype=2)  +
+ggtitle("allo")
+
+
+
+
+
+fem_allo_lda_frame<-data.frame(group=lda_fly_fem_allo[,12], lda=fly_fem_allo_lda_values$x)
+ggplot(fem_allo_lda_frame) + geom_point(aes(lda.LD1, lda.LD2, colour = group), size=2) + 
+	stat_ellipse()
+
+fly_fem_allo_lda_predict<-train(group~., method='lda', data=lda_fly_fem_allo, na.omit=T)
+confusionMatrix(lda_fly_fem_allo$group, predict(fly_fem_allo_lda_predict, lda_fly_fem_allo))
+
+################sym
+
+lda_fly_fem_sym<-fly_fem_sym[ ,c(8:11, 14:20)]
+lda_fly_fem_sym$group<-as.factor(paste(fly_fem_sym$Hostplant, fly_fem_sym$Baltic))
+lda_fly_fem_sym<-na.omit(lda_fly_fem_sym)
+head(lda_fly_fem_sym)
+dim(lda_fly_fem_sym)
+summary(lda_fly_fem_sym)
+
+fly_fem_sym_fit<-lda(group~., data=lda_fly_fem_sym)
+fly_fem_sym_fit
+str(fly_fem_sym_fit)
+
+fly_fem_sym_lda_values<-predict(fly_fem_sym_fit)
+
+
+
+
+
+fem_sym_datPred<-data.frame(group=fly_fem_sym_lda_values$class, fly_fem_sym_lda_values$x)
+
+fem_sym_datEll<- data.frame() 
+for(g in levels(fem_sym_datPred$group)){ 
+fem_sym_datEll <- rbind(fem_sym_datEll, cbind(as.data.frame(with(fem_sym_datPred[fem_sym_datPred$group==g,], ellipse(cor(LD1, LD2), 
+                                         scale=c(sd(LD1),sd(LD2)), 
+                                         centre=c(mean(LD1),mean(LD2))))),group=g)) 
+} 
+
+ggplot(fem_sym_datPred, aes(x=LD1, y=LD2, col=group) ) + geom_point( size = 4, aes(color = group))+theme_bw()+geom_path(data=fem_sym_datEll,aes(x=x,y=y,color=group),size=1,linetype=2)  +
+ggtitle("sym")
+
+
+
+
+
+fem_sym_lda_frame<-data.frame(group=lda_fly_fem_sym[,12], lda=fly_fem_sym_lda_values$x)
+ggplot(fem_sym_lda_frame) + geom_point(aes(lda.LD1, lda.LD2, colour = group), size=2) + 
+	stat_ellipse()
+
+fly_fem_sym_lda_predict<-train(group~., method='lda', data=lda_fly_fem_sym, na.omit=T)
+confusionMatrix(lda_fly_fem_sym$group, predict(fly_fem_sym_lda_predict, lda_fly_fem_sym))
+
+
+#boot
+
+# Split data into train and test sets
+train_index <-sample(seq(nrow(lda_fly_fem_east)),floor(dim(lda_fly_fem_east)[1]*0.75))
+train <- lda_fly_fem_east[train_index,]
+test <- lda_fly_fem_east[-train_index,]
+test_Y <- test[, c('group')]
+test_X <- subset(test, select=-c(group))
+
+summary(lda_fly_fem_east)
+
+#### LDA with bootstrap: 
+# Fit LDA to train data: to get standard errors for coefficients
+set.seed(1)
+boot_fem_east.fn <- function(data,index){ 
+  return(coefficients(lda(group~.,, data=lda_fly_fem_east, subset=index)))
+}
+# Call boot(): This returns LD1 and LD2 for each predictor
+lda_boot_fem_east<-boot(train, boot_fem_east.fn, 10)
+# NOTE: Here, in Bootstrap Statistics output, t1* to t4* are LD1 coefficients and t5* to t8* are LD2 coefficients
+
+summary(lda_boot_fem_east)
+
+
+
+
+
+# Split data into train and test sets
+train_index <-sample(seq(nrow(lda_fly_fem_west)),floor(dim(lda_fly_fem_west)[1]*0.75))
+train <- lda_fly_fem_west[train_index,]
+test <- lda_fly_fem_west[-train_index,]
+test_Y <- test[, c('group')]
+test_X <- subset(test, select=-c(group))
+
+
+#### LDA with bootstrap: 
+# Fit LDA to train data: to get standard errors for coefficients
+set.seed(1)
+boot_fem_west.fn <- function(data,index){ 
+  return(coefficients(lda(group~.,, data=lda_fly_fem_west, subset=index)))
+}
+# Call boot(): This returns LD1 and LD2 for each predictor
+lda_boot_fem_west<-boot(train, boot.fn, 100)
+# NOTE: Here, in Bootstrap Statistics output, t1* to t4* are LD1 coefficients and t5* to t8* are LD2 coefficients
+
+summary(lda_boot_fem_west)
+
+
+
+
+
+
+
+lda_boot_fem_east
+lda_boot_fem_west
+
+str(lda_bkoot_fem_east)
+str(lda_boot_fem_west)
+
+
+
+
+
+######MALES
+
+
+fly_male<-subset(fly, Sex=='Male')
+fly_male_east<-subset(fly_male, Baltic=='East')
+fly_male_west<-subset(fly_male, Baltic=='West')
+fly_male_allo<-subset(fly_male, Patry=='Allopatry')
+fly_male_sym<-subset(fly_male, Patry=='Sympatry')
+head(fly_male)
+
+lda_fly_male<-fly_male[ ,c(8,10:11, 14:20)]
+summary(lda_fly_male)
+lda_fly_male$group<-as.factor(paste(fly_male$Hostplant, fly_male$Patry))
+lda_fly_male<-na.omit(lda_fly_male)
+head(lda_fly_male)
+fly_male_fit<-lda(group~., data=lda_fly_male)
+fly_male_fit
+
+
+fly_male_lda_values<-predict(fly_male_fit)
+
+male_datPred<-data.frame(group=fly_male_lda_values$class, fly_male_lda_values$x)
+male_datEll<- data.frame() 
+
+for(g in levels(male_datPred$group)){ 
+  male_datEll <- rbind(male_datEll, cbind(as.data.frame(with(male_datPred[male_datPred$group==g,], ellipse(cor(LD1, LD2), 
+                                                                                                       scale=c(sd(LD1),sd(LD2)), 
+                                                                                                       centre=c(mean(LD1),mean(LD2))))),group=g)) 
+} 
+
+ggplot(male_datPred, aes(x=LD1, y=LD2, col=group) ) + geom_point( size = 4, aes(color = group))+theme_bw()+geom_path(data=male_datEll,aes(x=x,y=y,color=group),size=1,linetype=2)  +
+  ggtitle("all")
+
+male_lda_frame<-data.frame(group=lda_fly_male[,12], lda=fly_male_lda_values$x)
+ggplot(male_lda_frame) + geom_point(aes(lda.LD1, lda.LD2, colour = group), size=2)
+
+partimat(group~BL+OL+Wing.length+Wing.width, data=lda_fly_male, method='lda')
+
+fly_male_lda_predict<-train(group~., method='lda', data=lda_fly_male)
+confusionMatrix(lda_fly_male$group, predict(fly_male_lda_predict, lda_fly_male))
+
+#################east
+
+lda_fly_male_east<-fly_male_east[ ,c(8,10:11, 14:20)]
+lda_fly_male_east$group<-as.factor(paste(fly_male_east$Hostplant, fly_male_east$Patry))
+lda_fly_male_east<-na.omit(lda_fly_male_east)
+head(lda_fly_male_east)
+dim(lda_fly_male_east)
+lda_fly_male_east$group<-revalue(lda_fly_male_east$group,
+                                c("Heterophyllum Sympatry"="CH-flies Sympatry",
+                                  "Heterophyllum Allopatry"="CH-flies Allopatry",
+                                  "Oleraceum Sympatry"="CO-flies Sympatry",
+                                  "Oleraceum Allopatry"="CO-flies Allopatry"))
+
+
+fly_male_east_fit<-lda(group~., data=lda_fly_male_east)
+fly_male_east_fit
+str(fly_male_east_fit)
+
+fly_male_east_lda_values<-predict(fly_male_east_fit)
+
+fly_male_east_lda_predict<-train(group~., method='lda', data=lda_fly_male_east, na.omit=T)
+#east to east
+confusionMatrix(lda_fly_male_east$group, predict(fly_male_east_lda_predict, lda_fly_male_east))
+#west to east
+confusionMatrix(lda_fly_male_east$group, predict(fly_male_west_lda_predict, lda_fly_male_east))
+
+
+
+male_east_datPred<-data.frame(group=fly_male_east_lda_values$class, fly_male_east_lda_values$x)
+
+male_east_datEll<- data.frame() 
+for(g in levels(male_east_datPred$group)){ 
+  male_east_datEll <- rbind(male_east_datEll, cbind(as.data.frame(with(male_east_datPred[male_east_datPred$group==g,], ellipse(cor(LD1, LD2), 
+                                                                                                                           scale=c(sd(LD1),sd(LD2)), 
+                                                                                                                           centre=c(mean(LD1),mean(LD2))))),group=g)) 
+} 
+
+plotx<-ggplot(male_east_datPred, aes(x=LD1, y=LD2, col=group) ) + geom_point( size = 4, aes(color = group))+theme_bw()+geom_path(data=male_east_datEll,aes(x=x,y=y,color=group),size=1,linetype=2)  +
+  ggtitle(" ") + ylab("LD2") + xlab("LD1") 
++ panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid")
+
+
+malelda_east_plot<-ggplot(male_east_datPred, aes(x=LD1, y=LD2, col=group)) +
+  geom_point( size = 4, aes(color = group, shape = group))+
+  theme_bw() + 
+  geom_path(data=male_east_datEll,aes(x=x,y=y,color=group),size=1,linetype=2) +
+  scale_shape_manual(values = c(16, 17, 16, 17)) +
+  ggtitle("Eastern male flies") +
+  ylab("Linear Discriminant Axis 2") +
+  xlab("Linear Discriminant Axis 1") +
+  scale_color_manual(values = c("darkviolet","violet", "darkgreen", "green")) +
+  theme(axis.text.x = element_text(angle = 0), legend.position = c(0.84, 0.129), 
+        panel.border = element_rect(fill=NA,color="black", size=1, linetype="solid"),
+        legend.title=element_blank(),
+        legend.text=element_text(size=8),
+        #legend.spacing.y = unit(0.01, 'mm'),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        axis.title.x=element_text(size=14), axis.title.y=element_text(size=14),
+        title = element_text(size = 16))
+malelda_east_plot
+
+
+
+
+male_east_lda_frame<-data.frame(group=lda_fly_male_east[,12], lda=fly_male_east_lda_values$x)
+ggplot(test) + geom_point(aes(lda.LD1, lda.LD2, colour = group), size=2) + 
+  stat_ellipse()
+
+fly_male_east_lda_predict<-train(group~., method='lda', data=lda_fly_male_east, na.omit=T)
+confusionMatrix(lda_fly_male_east$group, predict(fly_male_east_lda_predict, lda_fly_male_east))
+
+####################west
+
+lda_fly_male_west<-fly_male_west[ ,c(8,10:11, 14:20)]
+lda_fly_male_west$group<-as.factor(paste(fly_male_west$Hostplant, fly_male_west$Patry))
+lda_fly_male_west<-na.omit(lda_fly_male_west)
+head(lda_fly_male_west)
+dim(lda_fly_male_west)
+
+fly_male_west_fit<-lda(group~., data=lda_fly_male_west)
+fly_male_west_fit
+str(fly_male_west_fit)
+
+fly_male_west_lda_values<-predict(fly_male_west_fit)
+
+fly_male_west_lda_predict<-train(group~., method='lda', data=lda_fly_male_west, na.omit=T)
+#west to west
+confusionMatrix(lda_fly_male_west$group, predict(fly_male_west_lda_predict, lda_fly_male_west))
+#east to west
+confusionMatrix(lda_fly_male_west$group, predict(fly_male_east_lda_predict, lda_fly_male_west))
+
+
+
+male_west_datPred<-data.frame(group=fly_male_west_lda_values$class, fly_male_west_lda_values$x)
+
+male_west_datEll<- data.frame() 
+for(g in levels(male_west_datPred$group)){ 
+  male_west_datEll <- rbind(male_west_datEll, cbind(as.data.frame(with(male_west_datPred[male_west_datPred$group==g,], ellipse(cor(LD1, LD2), 
+                                                                                                                           scale=c(sd(LD1),sd(LD2)), 
+                                                                                                                           centre=c(mean(LD1),mean(LD2))))),group=g)) 
+} 
+
+ggplot(male_west_datPred, aes(x=LD1, y=LD2, col=group) ) + geom_point( size = 4, aes(color = group))+theme_bw()+geom_path(data=male_west_datEll,aes(x=x,y=y,color=group),size=1,linetype=2)  +
+  ggtitle("west")
+
+
+malelda_west_plot<-ggplot(male_west_datPred, aes(x=LD1, y=LD2, col=group)) +
+  geom_point( size = 4, aes(color = group, shape = group))+
+  theme_bw() + 
+  geom_path(data=male_west_datEll,aes(x=x,y=y,color=group),size=1,linetype=2) +
+  scale_shape_manual(values = c(16, 17, 16, 17)) +
+  ggtitle("Western male flies") +
+  ylab("Linear Discriminant 2") +
+  xlab("Linear Discriminant 1") +
+  scale_color_manual(values = c("darkviolet","violet", "darkgreen", "green")) +
+  theme(axis.text.x = element_text(angle = 0), legend.position = "none", 
+        panel.border = element_rect(fill=NA,color="black", size=1, linetype="solid"),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        axis.title.x=element_text(size=14), axis.title.y=element_text(size=14),
+        title = element_text(size = 16))
+malelda_west_plot
+
+
+
+
+
+male_west_lda_frame<-data.frame(group=lda_fly_male_west[,12], lda=fly_male_west_lda_values$x)
+ggplot(male_west_lda_frame) + geom_point(aes(lda.LD1, lda.LD2, colour = group), size=2)
+
+male_east_lda_frame<-data.frame(group=lda_fly_male_east[,12], lda=fly_male_east_lda_values$x)
+ggplot() + geom_point(aes(lda.LD1, lda.LD2, colour = group), size=2)
+
+partimat(Zone~BL+OL+Wing.length+Wing.width, data=lda_fly_male_west, method='lda')
+
+
+fly_male_west_lda_predict<-train(Zone~., method='lda', data=lda_fly_male_west, na.omit=T)
+confusionMatrix(lda_fly_male_west$Zone, predict(fly_male_west_lda_predict, lda_fly_male_west))
+
+
+#boot
+
+# Split data into train and test sets
+train_index <-sample(seq(nrow(lda_fly_male_east)),floor(dim(lda_fly_male_east)[1]*0.85))
+train <- lda_fly_male_east[train_index,]
+test <- lda_fly_male_east[-train_index,]
+test_Y <- test[, c('group')]
+test_X <- subset(test, select=-c(group))
+
+
+
+#### LDA with bootstrap: 
+# Fit LDA to train data: to get standard errors for coefficients
+set.seed(1)
+boot_male_east.fn <- function(data,index){ 
+  return(coefficients(lda(group~.,, data=lda_fly_male_east, subset=index)))
+}
+# Call boot(): This returns LD1 and LD2 for each predictor
+lda_boot_male_east<-boot(train, boot_male_east.fn, 100000)
+# NOTE: Here, in Bootstrap Statistics output, t1* to t4* are LD1 coefficients and t5* to t8* are LD2 coefficients
+
+summary(lda_boot_male_east)
+str(lda_boot_male_east)
+lda_boot_male_east$t0
+lda_boot_male_east$t0[,2]
+
+summary(lda_boot_male_east)$bootSE[1:10]
+
+
+# Split data into train and test sets
+set.seed(66)
+train_index <-sample(seq(nrow(lda_fly_male_west)),floor(dim(lda_fly_male_west)[1]*0.85))
+train <- lda_fly_male_west[train_index,]
+summary(train)
+test <- lda_fly_male_west[-train_index,]
+test_Y <- test[, c('group')]
+test_X <- subset(test, select=-c(group))
+
+#### LDA with bootstrap: 
+# Fit LDA to train data: to get standard errors for coefficients
+boot_male_west.fn <- function(data,index){ 
+  return(coefficients(lda(group~.,, data=lda_fly_male_west, subset=index)))
+}
+# Call boot(): This returns LD1 and LD2 for each predictor
+lda_boot_male_west<-boot(train, boot_male_west.fn, 100000)
+# NOTE: Here, in Bootstrap Statistics output, t1* to t4* are LD1 coefficients and t5* to t8* are LD2 coefficients
+
+summary(lda_boot_male_west)
+str(lda_boot_male_west)
+lda_boot_male_west$t0
