@@ -1,0 +1,2308 @@
+library(evolvability)
+library(MCMCglmm)
+library(lme4)
+library(Rmisc)
+library(ggplot2)
+library(ellipse)
+library(ggpattern)
+library(devtools)
+devtools::install_github(repo = "GHBolstad/evolvability", build_vignettes = TRUE)
+
+#Datasets####
+
+setwd('/Users/kalle/Documents/Temp. Working Directory')
+efly<-read.csv('e_fly3.csv', sep=";", header=T)
+efly_fem<-subset(efly, Sex=='Female')
+efly_fem_noshape<-efly_fem[,-(13:18)]
+efly_fem_noovi_noshape<-efly_fem[,-c(8,13:18,20)]
+dim(efly_fem)
+
+
+#Subsetting####
+efly_fem_noshape_CH<-subset(efly_fem_noshape, Hostplant=="Heterophyllum")
+efly_fem_noshape_CO<-subset(efly_fem_noshape, Hostplant=="Oleraceum")
+
+efly_fem_noshape_sym<-subset(efly_fem_noshape, Patry=="Sympatry")
+efly_fem_noshape_allo<-subset(efly_fem_noshape, Patry=="Allopatry")
+
+efly_fem_noshape_east<-subset(efly_fem_noshape, Baltic=="East")
+efly_fem_noshape_west<-subset(efly_fem_noshape, Baltic=="West")
+
+efly_fem_noshape_CHES<-subset(efly_fem_noshape, Zone=="CHES")
+efly_fem_noshape_CHFI<-subset(efly_fem_noshape, Zone=="CHFI")
+efly_fem_noshape_CHST<-subset(efly_fem_noshape, Zone=="CHST")
+efly_fem_noshape_CHSK<-subset(efly_fem_noshape, Zone=="CHSK")
+
+efly_fem_noshape_COES<-subset(efly_fem_noshape, Zone=="COES")
+efly_fem_noshape_COLI<-subset(efly_fem_noshape, Zone=="COLI")
+efly_fem_noshape_COGE<-subset(efly_fem_noshape, Zone=="COGE")
+efly_fem_noshape_COSK<-subset(efly_fem_noshape, Zone=="COSK")
+
+
+efly_fem_noshape_CHe<-subset(efly_fem_noshape, Baltic=="East")
+efly_fem_noshape_CHe<-subset(efly_fem_noshape_CHe, Hostplant=="Heterophyllum")
+efly_fem_noshape_CHw<-subset(efly_fem_noshape, Baltic=="West")
+efly_fem_noshape_CHw<-subset(efly_fem_noshape_CHw, Hostplant=="Heterophyllum")
+efly_fem_noshape_COe<-subset(efly_fem_noshape, Baltic=="East")
+efly_fem_noshape_COe<-subset(efly_fem_noshape_COe, Hostplant=="Oleraceum")
+efly_fem_noshape_COw<-subset(efly_fem_noshape, Baltic=="West")
+efly_fem_noshape_COw<-subset(efly_fem_noshape_COw, Hostplant=="Oleraceum")
+
+efly_fem_noshape_CHallo<-subset(efly_fem_noshape, Patry=="Allopatry")
+efly_fem_noshape_CHallo<-subset(efly_fem_noshape_CHallo, Hostplant=="Heterophyllum")
+efly_fem_noshape_CHsym<-subset(efly_fem_noshape, Patry=="Sympatry")
+efly_fem_noshape_CHsym<-subset(efly_fem_noshape_CHsym, Hostplant=="Heterophyllum")
+efly_fem_noshape_COallo<-subset(efly_fem_noshape, Patry=="Allopatry")
+efly_fem_noshape_COallo<-subset(efly_fem_noshape_COallo, Hostplant=="Oleraceum")
+efly_fem_noshape_COsym<-subset(efly_fem_noshape, Patry=="Sympatry")
+efly_fem_noshape_COsym<-subset(efly_fem_noshape_COsym, Hostplant=="Oleraceum")
+
+efly_fem_noshape_noovi_CH<-subset(efly_fem_noovi_noshape, Hostplant=="Heterophyllum")
+efly_fem_noshape_noovi_CO<-subset(efly_fem_noovi_noshape, Hostplant=="Oleraceum")
+
+
+#Matrices####
+FM_noshape<-cbind(efly_fem_noshape$BL.ln, efly_fem_noshape$OL.ln, efly_fem_noshape$WL.ln, efly_fem_noshape$WW.ln, efly_fem_noshape$WA.sqrt.ln, efly_fem_noshape$MA.sqrt.ln)
+FCV_noshape<-cov(FM_noshape)
+
+FM_noshape_CH<-cbind(efly_fem_noshape_CH$BL.ln, efly_fem_noshape_CH$OL.ln, efly_fem_noshape_CH$WL.ln, efly_fem_noshape_CH$WW.ln, efly_fem_noshape_CH$WA.sqrt.ln, efly_fem_noshape_CH$MA.sqrt.ln)
+FCV_noshape_CH<-cov(FM_noshape_CH)
+FM_noshape_noovi_CH<-cbind(efly_fem_noshape_noovi_CH$BL.ln, efly_fem_noshape_noovi_CH$WL.ln, efly_fem_noshape_noovi_CH$WW.ln, efly_fem_noshape_noovi_CH$WA.sqrt.ln, efly_fem_noshape_noovi_CH$MA.sqrt.ln)
+FCV_noshape_noovi_CH<-cov(FM_noshape_noovi_CH)
+
+FM_noshape_CO<-cbind(efly_fem_noshape_CO$BL.ln, efly_fem_noshape_CO$OL.ln, efly_fem_noshape_CO$WL.ln, efly_fem_noshape_CO$WW.ln, efly_fem_noshape_CO$WA.sqrt.ln, efly_fem_noshape_CO$MA.sqrt.ln)
+FCV_noshape_CO<-cov(FM_noshape_CO)
+FM_noshape_noovi_CO<-cbind(efly_fem_noshape_noovi_CO$BL.ln, efly_fem_noshape_noovi_CO$WL.ln, efly_fem_noshape_noovi_CO$WW.ln, efly_fem_noshape_noovi_CO$WA.sqrt.ln, efly_fem_noshape_noovi_CO$MA.sqrt.ln)
+FCV_noshape_noovi_CO<-cov(FM_noshape_noovi_CO)
+
+FM_noshape_sym<-cbind(efly_fem_noshape_sym$BL.ln, efly_fem_noshape_sym$OL.ln, efly_fem_noshape_sym$WL.ln, efly_fem_noshape_sym$WW.ln, efly_fem_noshape_sym$WA.sqrt.ln, efly_fem_noshape_sym$MA.sqrt.ln)
+FCV_noshape_sym<-cov(FM_noshape_sym)
+
+FM_noshape_allo<-cbind(efly_fem_noshape_allo$BL.ln, efly_fem_noshape_allo$OL.ln, efly_fem_noshape_allo$WL.ln, efly_fem_noshape_allo$WW.ln, efly_fem_noshape_allo$WA.sqrt.ln, efly_fem_noshape_allo$MA.sqrt.ln)
+FCV_noshape_allo<-cov(FM_noshape_allo)
+
+FM_noshape_east<-cbind(efly_fem_noshape_east$BL.ln, efly_fem_noshape_east$OL.ln, efly_fem_noshape_east$WL.ln, efly_fem_noshape_east$WW.ln, efly_fem_noshape_east$WA.sqrt.ln, efly_fem_noshape_east$MA.sqrt.ln)
+FCV_noshape_east<-cov(FM_noshape_east)
+
+FM_noshape_west<-cbind(efly_fem_noshape_west$BL.ln, efly_fem_noshape_west$OL.ln, efly_fem_noshape_west$WL.ln, efly_fem_noshape_west$WW.ln, efly_fem_noshape_west$WA.sqrt.ln, efly_fem_noshape_west$MA.sqrt.ln)
+FCV_noshape_west<-cov(FM_noshape_west)
+
+FM_noshape_CHe<-cbind(efly_fem_noshape_CHe$BL.ln, efly_fem_noshape_CHe$OL.ln, efly_fem_noshape_CHe$WL.ln, efly_fem_noshape_CHe$WW.ln, efly_fem_noshape_CHe$WA.sqrt.ln, efly_fem_noshape_CHe$MA.sqrt.ln)
+FCV_noshape_CHe<-cov(FM_noshape_CHe)
+
+FM_noshape_CHw<-cbind(efly_fem_noshape_CHw$BL.ln, efly_fem_noshape_CHw$OL.ln, efly_fem_noshape_CHw$WL.ln, efly_fem_noshape_CHw$WW.ln, efly_fem_noshape_CHw$WA.sqrt.ln, efly_fem_noshape_CHw$MA.sqrt.ln)
+FCV_noshape_CHw<-cov(FM_noshape_CHw)
+
+FM_noshape_COe<-cbind(efly_fem_noshape_COe$BL.ln, efly_fem_noshape_COe$OL.ln, efly_fem_noshape_COe$WL.ln, efly_fem_noshape_COe$WW.ln, efly_fem_noshape_COe$WA.sqrt.ln, efly_fem_noshape_COe$MA.sqrt.ln)
+FCV_noshape_COe<-cov(FM_noshape_COe)
+
+FM_noshape_COw<-cbind(efly_fem_noshape_COw$BL.ln, efly_fem_noshape_COw$OL.ln, efly_fem_noshape_COw$WL.ln, efly_fem_noshape_COw$WW.ln, efly_fem_noshape_COw$WA.sqrt.ln, efly_fem_noshape_COw$MA.sqrt.ln)
+FCV_noshape_COw<-cov(FM_noshape_COw)
+
+FM_noshape_CHallo<-cbind(efly_fem_noshape_CHallo$BL.ln, efly_fem_noshape_CHallo$OL.ln, efly_fem_noshape_CHallo$WL.ln, efly_fem_noshape_CHallo$WW.ln, efly_fem_noshape_CHallo$WA.sqrt.ln, efly_fem_noshape_CHallo$MA.sqrt.ln)
+FCV_noshape_CHallo<-cov(FM_noshape_CHallo)
+
+FM_noshape_CHsym<-cbind(efly_fem_noshape_CHsym$BL.ln, efly_fem_noshape_CHsym$OL.ln, efly_fem_noshape_CHsym$WL.ln, efly_fem_noshape_CHsym$WW.ln, efly_fem_noshape_CHsym$WA.sqrt.ln, efly_fem_noshape_CHsym$MA.sqrt.ln)
+FCV_noshape_CHsym<-cov(FM_noshape_CHsym)
+
+FM_noshape_COallo<-cbind(efly_fem_noshape_COallo$BL.ln, efly_fem_noshape_COallo$OL.ln, efly_fem_noshape_COallo$WL.ln, efly_fem_noshape_COallo$WW.ln, efly_fem_noshape_COallo$WA.sqrt.ln, efly_fem_noshape_COallo$MA.sqrt.ln)
+FCV_noshape_COallo<-cov(FM_noshape_COallo)
+
+FM_noshape_COsym<-cbind(efly_fem_noshape_COsym$BL.ln, efly_fem_noshape_COsym$OL.ln, efly_fem_noshape_COsym$WL.ln, efly_fem_noshape_COsym$WW.ln, efly_fem_noshape_COsym$WA.sqrt.ln, efly_fem_noshape_COsym$MA.sqrt.ln)
+FCV_noshape_COsym<-cov(FM_noshape_COsym)
+
+
+FM_noshape_CHES<-cbind(efly_fem_noshape_CHES$BL.ln, efly_fem_noshape_CHES$OL.ln, efly_fem_noshape_CHES$WL.ln, efly_fem_noshape_CHES$WW.ln, efly_fem_noshape_CHES$WA.sqrt.ln, efly_fem_noshape_CHES$MA.sqrt.ln)
+FCV_noshape_CHES<-cov(FM_noshape_CHES)
+
+FM_noshape_CHFI<-cbind(efly_fem_noshape_CHFI$BL.ln, efly_fem_noshape_CHFI$OL.ln, efly_fem_noshape_CHFI$WL.ln, efly_fem_noshape_CHFI$WW.ln, efly_fem_noshape_CHFI$WA.sqrt.ln, efly_fem_noshape_CHFI$MA.sqrt.ln)
+FCV_noshape_CHFI<-cov(FM_noshape_CHFI)
+
+FM_noshape_CHST<-cbind(efly_fem_noshape_CHST$BL.ln, efly_fem_noshape_CHST$OL.ln, efly_fem_noshape_CHST$WL.ln, efly_fem_noshape_CHST$WW.ln, efly_fem_noshape_CHST$WA.sqrt.ln, efly_fem_noshape_CHST$MA.sqrt.ln)
+FCV_noshape_CHST<-cov(FM_noshape_CHST)
+
+FM_noshape_CHSK<-cbind(efly_fem_noshape_CHSK$BL.ln, efly_fem_noshape_CHSK$OL.ln, efly_fem_noshape_CHSK$WL.ln, efly_fem_noshape_CHSK$WW.ln, efly_fem_noshape_CHSK$WA.sqrt.ln, efly_fem_noshape_CHSK$MA.sqrt.ln)
+FCV_noshape_CHSK<-cov(FM_noshape_CHSK)
+
+FM_noshape_COES<-cbind(efly_fem_noshape_COES$BL.ln, efly_fem_noshape_COES$OL.ln, efly_fem_noshape_COES$WL.ln, efly_fem_noshape_COES$WW.ln, efly_fem_noshape_COES$WA.sqrt.ln, efly_fem_noshape_COES$MA.sqrt.ln)
+FCV_noshape_COES<-cov(FM_noshape_COES)
+
+FM_noshape_COLI<-cbind(efly_fem_noshape_COLI$BL.ln, efly_fem_noshape_COLI$OL.ln, efly_fem_noshape_COLI$WL.ln, efly_fem_noshape_COLI$WW.ln, efly_fem_noshape_COLI$WA.sqrt.ln, efly_fem_noshape_COLI$MA.sqrt.ln)
+FCV_noshape_COLI<-cov(FM_noshape_COLI)
+
+FM_noshape_COGE<-cbind(efly_fem_noshape_COGE$BL.ln, efly_fem_noshape_COGE$OL.ln, efly_fem_noshape_COGE$WL.ln, efly_fem_noshape_COGE$WW.ln, efly_fem_noshape_COGE$WA.sqrt.ln, efly_fem_noshape_COGE$MA.sqrt.ln)
+FCV_noshape_COGE<-cov(FM_noshape_COGE)
+
+FM_noshape_COSK<-cbind(efly_fem_noshape_COSK$BL.ln, efly_fem_noshape_COSK$OL.ln, efly_fem_noshape_COSK$WL.ln, efly_fem_noshape_COSK$WW.ln, efly_fem_noshape_COSK$WA.sqrt.ln, efly_fem_noshape_COSK$MA.sqrt.ln)
+FCV_noshape_COSK<-cov(FM_noshape_COSK)
+
+#D-matrix####
+
+EigenVectors <- eigen(FCV_noshape)$vectors
+
+D_df_OL<-tapply(efly_fem$OL.ln, efly_fem$Zone, mean)
+D_df_BL<-tapply(efly_fem$BL.ln, efly_fem$Zone, mean)
+D_df_WL<-tapply(efly_fem$WL.ln, efly_fem$Zone, mean)
+D_df_WW<-tapply(efly_fem$WW.ln, efly_fem$Zone, mean)
+D_df_WA<-tapply(efly_fem$WA.sqrt.ln, efly_fem$Zone, mean)
+D_df_MA<-tapply(efly_fem$MA.sqrt.ln, efly_fem$Zone, mean)
+D_df_noshape<-data.frame(D_df_BL,D_df_OL,D_df_WL,D_df_WW,D_df_WA,D_df_MA)
+
+Dmatrix <- var(D_df_noshape)
+
+Rotated_D <- t(EigenVectors) %*% Dmatrix %*% EigenVectors
+
+Rotated_P<-t(EigenVectors) %*% FCV_noshape %*% EigenVectors
+
+PtoD<-plot(log(diag(Rotated_D)) ~ log(diag(Rotated_P)),pch=19, xlab="Ancestral variation (P-matrix)", ylab="Evolutionary divergence (D-matrix)", cex=2, cex.lab=1.3, cex.axis=1.2)+text(-5.7, -14.72, expression(R^2==0.98), cex=1.4)
+summary(lm(log(diag(Rotated_D)) ~ log(diag(Rotated_P))))
+
+
+pvsdnoshape=NULL
+for(j in 1:1000){
+  temp1 = matrix(mod_noshapezone$VCV[j,], nrow=6)
+  temp2 = eigen(temp1)$vectors
+  tempd = t(temp2) %*% Dmatrix %*% temp2
+  tempp = t(temp2) %*% temp1 %*% temp2
+  pvsdnoshape[j]<-(summary(lm(log(diag(tempd)) ~ log(diag(tempp))))$r.squared)
+}
+
+mean(pvsdnoshape)
+quantile(pvsdnoshape, c(0.025, 0.975))
+
+
+
+#MCMCs####
+
+###All noshape ----
+mcmcdata_noshape<-as.data.frame(cbind(efly_fem_noshape$BL.ln, efly_fem_noshape$OL.ln, efly_fem_noshape$WL.ln, efly_fem_noshape$WW.ln, efly_fem_noshape$WA.sqrt.ln, efly_fem_noshape$MA.sqrt.ln)*1000)
+mcmcdata_noshape$Zone<-efly_fem_noshape$Zone
+colnames(mcmcdata_noshape)<-c("BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noshape)
+
+n = 6
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noshapezone<-MCMCglmm(cbind(BL.ln, OL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ Zone+trait,
+                          rcov= ~us(trait):units,
+                          data=mcmcdata_noshape,
+                          family=rep("gaussian", 6), prior=prior, nitt=1000000, burnin=500000, thin=500)
+
+dim(mod_noshapezone$VCV)
+
+pmat_noshapezone = matrix(apply(mod_noshapezone$VCV, 2, median)[1:36], nrow=n)/10000
+
+plot(pmat_noshapezone~cov(cbind(efly_fem_noshape$BL.ln, efly_fem_noshape$OL.ln, efly_fem_noshape$WL.ln, efly_fem_noshape$WW.ln, efly_fem_noshape$WA.sqrt.ln, efly_fem_noshape
+                                $MA.sqrt.ln)))
+
+ci_noshapezone = evolvabilityMeansMCMC(mod_noshapezone$VCV[,1:36]/100)
+ci_noshapezone$post.medians
+
+
+###all no shape, no ovipositor ----
+mcmcdata_noovi_noshape<-as.data.frame(cbind(efly_fem_noshape$BL.ln, efly_fem_noshape$WL.ln, efly_fem_noshape$WW.ln, efly_fem_noshape$WA.sqrt.ln, efly_fem_noshape$MA.sqrt.ln)*1000)
+mcmcdata_noovi_noshape$Zone<-efly_fem_noshape$Zone
+colnames(mcmcdata_noovi_noshape)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noovi_noshape)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noovi_noshape<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait:Zone,
+                               rcov= ~us(trait):units,
+                               data=mcmcdata_noovi_noshape,
+                               family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=500)
+
+dim((mod_noovi_noshape$VCV))
+pmat_noovi_noshape = matrix(apply(mod_noovi_noshape$VCV, 2, median)[1:25], nrow=n)/1000000
+pmat_noovi_noshape=pmat_noovi_noshape*100
+plot(pmat_noovi_noshape~cov(cbind(efly_fem_noshape$BL.ln, efly_fem_noshape$WL.ln, efly_fem_noshape$WW.ln, efly_fem_noshape$WA.sqrt.ln, efly_fem_noshape$MA.sqrt.ln)))
+
+ci_noovi = evolvabilityMeansMCMC(mod_noovi_noshape$VCV[,1:25]/10000)
+ci_noovi$post.medians*100
+
+
+###Condon ovi----
+
+(1-evolvabilityMeans(conditionalG(pmat_noshapezone*100, condition_on=2))[1]/evolvabilityMeans(pmat_noshapezone[-2,-2]*100)[1])*100
+
+diff=NULL
+auto=NULL
+for(i in 1:1000){
+  testpmat = matrix(mod_noshapezone$VCV[i,][1:36], nrow=6)/1000000
+  testcmatcondG=conditionalG(testpmat, condition_on=2)
+  fullpmat=testpmat[-2,-2]
+  em = evolvabilityMeans(fullpmat)[1]
+  emc = evolvabilityMeans(testcmatcondG)[1]
+  diff[i] = em-emc
+  auto[i]=100*emc/em
+}
+mean(diff)
+mean(auto)
+quantile(auto, c(0.025, 0.975))
+hist(auto)
+
+#how independent is a random trait from ovipositor
+
+mean(diff)
+quantile(diff, c(0.025, 0.975))
+hist(diff*1000)
+sum(diff>0)/length(diff)
+
+###CH noshape ----
+mcmcdata_noshape_CH<-as.data.frame(cbind(efly_fem_noshape_CH$BL.ln, efly_fem_noshape_CH$OL.ln, efly_fem_noshape_CH$WL.ln, efly_fem_noshape_CH$WW.ln, efly_fem_noshape_CH$WA.sqrt.ln, efly_fem_noshape_CH$MA.sqrt.ln)*1000)
+mcmcdata_noshape_CH$Zone<-efly_fem_noshape_CH$Zone
+colnames(mcmcdata_noshape_CH)<-c("BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noshape_CH)
+
+n = 6
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noshape_CH<-MCMCglmm(cbind(BL.ln, OL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait:Zone,
+                         rcov= ~us(trait):units,
+                         data=mcmcdata_noshape_CH,
+                         family=rep("gaussian", 6), prior=prior, nitt=1000000, burnin=500000, thin=500)
+
+dim(mod_noshape_CH$VCV)
+
+pmat_noshape_CH = matrix(apply(mod_noshape_CH$VCV, 2, median)[1:36], nrow=n)/1000000
+pmat_noshape_CH=pmat_noshape_CH*100
+dim(pmat_noshape_CH)
+plot(pmat_noshape_CH~cov(cbind(efly_fem_noshape_CH$BL.ln, efly_fem_noshape_CH$OL.ln, efly_fem_noshape_CH$WL.ln, efly_fem_noshape_CH$WW.ln, efly_fem_noshape_CH$WA.sqrt.ln, efly_fem_noshape_CH$MA.sqrt.ln)))
+
+ci_noshape_CH = evolvabilityMeansMCMC(mod_noshape_CH$VCV[,1:36]/10000)
+ci_noshape_CH$post.medians*100
+
+
+###CH no shape, no ovipositor ----
+mcmcdata_noovi_noshape_CH<-as.data.frame(cbind(efly_fem_noshape_CH$BL.ln, efly_fem_noshape_CH$WL.ln, efly_fem_noshape_CH$WW.ln, efly_fem_noshape_CH$WA.sqrt.ln, efly_fem_noshape_CH$MA.sqrt.ln)*1000)
+mcmcdata_noovi_noshape_CH$Zone<-efly_fem_noshape_CH$Zone
+colnames(mcmcdata_noovi_noshape_CH)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noovi_noshape_CH)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noovi_noshape_CH<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait:Zone,
+                       rcov= ~us(trait):units,
+                       data=mcmcdata_noovi_noshape_CH,
+                       family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=500)
+
+dim((mod_noovi_noshape_CH$VCV))
+pmat_noovi_noshape_CH = matrix(apply(mod_noovi_noshape_CH$VCV, 2, median)[1:25], nrow=n)/1000000
+pmat_noovi_noshape_CH=pmat_noovi_noshape_CH*100
+plot(pmat_noovi_noshape_CH~cov(cbind(efly_fem_noshape_CH$BL.ln, efly_fem_noshape_CH$WL.ln, efly_fem_noshape_CH$WW.ln, efly_fem_noshape_CH$WA.sqrt.ln, efly_fem_noshape_CH$MA.sqrt.ln)))
+
+ci_noovi_CH = evolvabilityMeansMCMC(mod_noovi_noshape_CH$VCV[,1:25]/10000)
+ci_noovi_CH$post.medians*100
+
+###CO noshape -----
+mcmcdata_noshape_CO<-as.data.frame(cbind(efly_fem_noshape_CO$BL.ln, efly_fem_noshape_CO$OL.ln, efly_fem_noshape_CO$WL.ln, efly_fem_noshape_CO$WW.ln, efly_fem_noshape_CO$WA.sqrt.ln, efly_fem_noshape_CO$MA.sqrt.ln)*1000)
+mcmcdata_noshape_CO$Zone<-efly_fem_noshape_CO$Zone
+colnames(mcmcdata_noshape_CO)<-c("BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noshape_CO)
+
+n = 6
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noshape_CO<-MCMCglmm(cbind(BL.ln, OL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait:Zone,
+                         rcov= ~us(trait):units,
+                         data=mcmcdata_noshape_CO,
+                         family=rep("gaussian", 6), prior=prior, nitt=1000000, burnin=500000, thin=500)
+
+dim(mod_noshape_CO$VCV)
+pmat_noshape_CO = matrix(apply(mod_noshape_CO$VCV, 2, median)[1:36], nrow=n)/1000000
+pmat_noshape_CO=pmat_noshape_CO*100
+dim(pmat_noshape_CO)
+plot(pmat_noshape_CO~cov(cbind(efly_fem_noshape_CO$BL.ln, efly_fem_noshape_CO$OL.ln, efly_fem_noshape_CO$WL.ln, efly_fem_noshape_CO$WW.ln, efly_fem_noshape_CO$WA.sqrt.ln, efly_fem_noshape_CO$MA.sqrt.ln)))
+
+ci_noshape_CO = evolvabilityMeansMCMC(mod_noshape_CO$VCV[,1:36]/10000)
+ci_noshape_CO$post.medians*100
+
+###CO no shape, no ovipositor ----
+mcmcdata_noovi_noshape_CO<-as.data.frame(cbind(efly_fem_noshape_CO$BL.ln, efly_fem_noshape_CO$WL.ln, efly_fem_noshape_CO$WW.ln, efly_fem_noshape_CO$WA.sqrt.ln, efly_fem_noshape_CO$MA.sqrt.ln)*1000)
+mcmcdata_noovi_noshape_CO$Zone<-efly_fem_noshape_CO$Zone
+colnames(mcmcdata_noovi_noshape_CO)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noovi_noshape_CO)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noovi_noshape_CO<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait:Zone,
+                               rcov= ~us(trait):units,
+                               data=mcmcdata_noovi_noshape_CO,
+                               family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=500)
+
+dim((mod_noovi_noshape_CO$VCV))
+pmat_noovi_noshape_CO = matrix(apply(mod_noovi_noshape_CO$VCV, 2, median)[1:25], nrow=n)/1000000
+pmat_noovi_noshape_CO=pmat_noovi_noshape_CO*100
+plot(pmat_noovi_noshape_CO~cov(cbind(efly_fem_noshape_CO$BL.ln, efly_fem_noshape_CO$WL.ln, efly_fem_noshape_CO$WW.ln, efly_fem_noshape_CO$WA.sqrt.ln, efly_fem_noshape_CO$MA.sqrt.ln)))
+
+ci_noovi_CO = evolvabilityMeansMCMC(mod_noovi_noshape_CO$VCV[,1:25]/10000)
+ci_noovi_CO$post.medians*100
+
+###Sym noshape-----
+mcmcdata_noshape_sym<-as.data.frame(cbind(efly_fem_noshape_sym$BL.ln, efly_fem_noshape_sym$OL.ln, efly_fem_noshape_sym$WL.ln, efly_fem_noshape_sym$WW.ln, efly_fem_noshape_sym$WA.sqrt.ln, efly_fem_noshape_sym$MA.sqrt.ln)*1000)
+mcmcdata_noshape_sym$Zone<-efly_fem_noshape_sym$Zone
+colnames(mcmcdata_noshape_sym)<-c("BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noshape_sym)
+
+n = 6
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noshape_sym<-MCMCglmm(cbind(BL.ln, OL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait:Zone,
+                          rcov= ~us(trait):units,
+                          data=mcmcdata_noshape_sym,
+                          family=rep("gaussian", 6), prior=prior, nitt=1000000, burnin=500000, thin=500)
+
+dim(mod_noshape_sym$VCV)
+pmat_noshape_sym = matrix(apply(mod_noshape_sym$VCV, 2, median)[1:36], nrow=n)/1000000
+pmat_noshape_sym=pmat_noshape_sym*100
+dim(pmat_noshape_sym)
+plot(pmat_noshape_sym~cov(cbind(efly_fem_noshape_sym$BL.ln, efly_fem_noshape_sym$OL.ln, efly_fem_noshape_sym$WL.ln, efly_fem_noshape_sym$WW.ln, efly_fem_noshape_sym$WA.sqrt.ln, efly_fem_noshape_sym$MA.sqrt.ln)))
+
+ci_noshape_sym = evolvabilityMeansMCMC(mod_noshape_sym$VCV[,1:36]/10000)
+ci_noshape_sym$post.medians*100
+
+###Allo noshape-----
+mcmcdata_noshape_allo<-as.data.frame(cbind(efly_fem_noshape_allo$BL.ln, efly_fem_noshape_allo$OL.ln, efly_fem_noshape_allo$WL.ln, efly_fem_noshape_allo$WW.ln, efly_fem_noshape_allo$WA.sqrt.ln, efly_fem_noshape_allo$MA.sqrt.ln)*1000)
+mcmcdata_noshape_allo$Zone<-efly_fem_noshape_allo$Zone
+colnames(mcmcdata_noshape_allo)<-c("BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noshape_allo)
+
+n = 6
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noshape_allo<-MCMCglmm(cbind(BL.ln, OL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait:Zone,
+                           rcov= ~us(trait):units,
+                           data=mcmcdata_noshape_allo,
+                           family=rep("gaussian", 6), prior=prior, nitt=1000000, burnin=500000, thin=500)
+
+dim(mod_noshape_allo$VCV)
+pmat_noshape_allo = matrix(apply(mod_noshape_allo$VCV, 2, median)[1:36], nrow=n)/1000000
+pmat_noshape_allo=pmat_noshape_allo*100
+dim(pmat_noshape_allo)
+plot(pmat_noshape_allo~cov(cbind(efly_fem_noshape_allo$BL.ln, efly_fem_noshape_allo$OL.ln, efly_fem_noshape_allo$WL.ln, efly_fem_noshape_allo$WW.ln, efly_fem_noshape_allo$WA.sqrt.ln, efly_fem_noshape_allo$MA.sqrt.ln)))
+
+ci_noshape_allo = evolvabilityMeansMCMC(mod_noshape_allo$VCV[,1:36]/10000)
+ci_noshape_allo$post.medians*100
+
+###CHES noshape-----
+mcmcdata_noshape_CHES<-as.data.frame(cbind(efly_fem_noshape_CHES$BL.ln, efly_fem_noshape_CHES$OL.ln, efly_fem_noshape_CHES$WL.ln, efly_fem_noshape_CHES$WW.ln, efly_fem_noshape_CHES$WA.sqrt.ln, efly_fem_noshape_CHES$MA.sqrt.ln)*1000)
+mcmcdata_noshape_CHES$Zone<-efly_fem_noshape_CHES$Zone
+colnames(mcmcdata_noshape_CHES)<-c("BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noshape_CHES)
+
+n = 6
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noshape_CHES<-MCMCglmm(cbind(BL.ln, OL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                           rcov= ~us(trait):units,
+                           data=mcmcdata_noshape_CHES,
+                           family=rep("gaussian", 6), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(mod_noshape_CHES$VCV)
+pmat_noshape_CHES = matrix(apply(mod_noshape_CHES$VCV, 2, median)[1:36], nrow=n)/1000000
+pmat_noshape_CHES=pmat_noshape_CHES*100
+dim(pmat_noshape_CHES)
+plot(pmat_noshape_CHES~cov(cbind(efly_fem_noshape_CHES$BL.ln, efly_fem_noshape_CHES$OL.ln, efly_fem_noshape_CHES$WL.ln, efly_fem_noshape_CHES$WW.ln, efly_fem_noshape_CHES$WA.sqrt.ln, efly_fem_noshape_CHES$MA.sqrt.ln)))
+
+ci_noshape_CHES = evolvabilityMeansMCMC(mod_noshape_CHES$VCV[,1:36]/10000)
+ci_noshape_CHES$post.medians*100
+
+###CHFI noshape----
+mcmcdata_noshape_CHFI<-as.data.frame(cbind(efly_fem_noshape_CHFI$BL.ln, efly_fem_noshape_CHFI$OL.ln, efly_fem_noshape_CHFI$WL.ln, efly_fem_noshape_CHFI$WW.ln, efly_fem_noshape_CHFI$WA.sqrt.ln, efly_fem_noshape_CHFI$MA.sqrt.ln)*1000)
+mcmcdata_noshape_CHFI$Zone<-efly_fem_noshape_CHFI$Zone
+colnames(mcmcdata_noshape_CHFI)<-c("BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noshape_CHFI)
+
+n = 6
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noshape_CHFI<-MCMCglmm(cbind(BL.ln, OL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                           rcov= ~us(trait):units,
+                           data=mcmcdata_noshape_CHFI,
+                           family=rep("gaussian", 6), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(mod_noshape_CHFI$VCV)
+pmat_noshape_CHFI = matrix(apply(mod_noshape_CHFI$VCV, 2, median)[1:36], nrow=n)/1000000
+pmat_noshape_CHFI=pmat_noshape_CHFI*100
+dim(pmat_noshape_CHFI)
+plot(pmat_noshape_CHFI~cov(cbind(efly_fem_noshape_CHFI$BL.ln, efly_fem_noshape_CHFI$OL.ln, efly_fem_noshape_CHFI$WL.ln, efly_fem_noshape_CHFI$WW.ln, efly_fem_noshape_CHFI$WA.sqrt.ln, efly_fem_noshape_CHFI$MA.sqrt.ln)))
+
+ci_noshape_CHFI = evolvabilityMeansMCMC(mod_noshape_CHFI$VCV[,1:36]/10000)
+ci_noshape_CHFI$post.medians*100
+
+###CHSK noshape----
+mcmcdata_noshape_CHSK<-as.data.frame(cbind(efly_fem_noshape_CHSK$BL.ln, efly_fem_noshape_CHSK$OL.ln, efly_fem_noshape_CHSK$WL.ln, efly_fem_noshape_CHSK$WW.ln, efly_fem_noshape_CHSK$WA.sqrt.ln, efly_fem_noshape_CHSK$MA.sqrt.ln)*1000)
+mcmcdata_noshape_CHSK$Zone<-efly_fem_noshape_CHSK$Zone
+colnames(mcmcdata_noshape_CHSK)<-c("BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noshape_CHSK)
+
+n = 6
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noshape_CHSK<-MCMCglmm(cbind(BL.ln, OL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                           rcov= ~us(trait):units,
+                           data=mcmcdata_noshape_CHSK,
+                           family=rep("gaussian", 6), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(mod_noshape_CHSK$VCV)
+pmat_noshape_CHSK = matrix(apply(mod_noshape_CHSK$VCV, 2, median)[1:36], nrow=n)/1000000
+pmat_noshape_CHSK=pmat_noshape_CHSK*100
+dim(pmat_noshape_CHSK)
+plot(pmat_noshape_CHSK~cov(cbind(efly_fem_noshape_CHSK$BL.ln, efly_fem_noshape_CHSK$OL.ln, efly_fem_noshape_CHSK$WL.ln, efly_fem_noshape_CHSK$WW.ln, efly_fem_noshape_CHSK$WA.sqrt.ln, efly_fem_noshape_CHSK$MA.sqrt.ln)))
+
+ci_noshape_CHSK = evolvabilityMeansMCMC(mod_noshape_CHSK$VCV[,1:36]/10000)
+ci_noshape_CHSK$post.medians*100
+
+###CHST noshape----
+mcmcdata_noshape_CHST<-as.data.frame(cbind(efly_fem_noshape_CHST$BL.ln, efly_fem_noshape_CHST$OL.ln, efly_fem_noshape_CHST$WL.ln, efly_fem_noshape_CHST$WW.ln, efly_fem_noshape_CHST$WA.sqrt.ln, efly_fem_noshape_CHST$MA.sqrt.ln)*1000)
+mcmcdata_noshape_CHST$Zone<-efly_fem_noshape_CHST$Zone
+colnames(mcmcdata_noshape_CHST)<-c("BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noshape_CHST)
+
+n = 6
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noshape_CHST<-MCMCglmm(cbind(BL.ln, OL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                           rcov= ~us(trait):units,
+                           data=mcmcdata_noshape_CHST,
+                           family=rep("gaussian", 6), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(mod_noshape_CHST$VCV)
+pmat_noshape_CHST = matrix(apply(mod_noshape_CHST$VCV, 2, median)[1:36], nrow=n)/1000000
+pmat_noshape_CHST=pmat_noshape_CHST*100
+dim(pmat_noshape_CHST)
+plot(pmat_noshape_CHST~cov(cbind(efly_fem_noshape_CHST$BL.ln, efly_fem_noshape_CHST$OL.ln, efly_fem_noshape_CHST$WL.ln, efly_fem_noshape_CHST$WW.ln, efly_fem_noshape_CHST$WA.sqrt.ln, efly_fem_noshape_CHST$MA.sqrt.ln)))
+
+ci_noshape_CHST = evolvabilityMeansMCMC(mod_noshape_CHST$VCV[,1:36]/10000)
+ci_noshape_CHST$post.medians*100
+
+###COES noshape----
+mcmcdata_noshape_COES<-as.data.frame(cbind(efly_fem_noshape_COES$BL.ln, efly_fem_noshape_COES$OL.ln, efly_fem_noshape_COES$WL.ln, efly_fem_noshape_COES$WW.ln, efly_fem_noshape_COES$WA.sqrt.ln, efly_fem_noshape_COES$MA.sqrt.ln)*1000)
+mcmcdata_noshape_COES$Zone<-efly_fem_noshape_COES$Zone
+colnames(mcmcdata_noshape_COES)<-c("BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noshape_COES)
+
+n = 6
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noshape_COES<-MCMCglmm(cbind(BL.ln, OL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                           rcov= ~us(trait):units,
+                           data=mcmcdata_noshape_COES,
+                           family=rep("gaussian", 6), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(mod_noshape_COES$VCV)
+pmat_noshape_COES = matrix(apply(mod_noshape_COES$VCV, 2, median)[1:36], nrow=n)/1000000
+pmat_noshape_COES=pmat_noshape_COES*100
+dim(pmat_noshape_COES)
+plot(pmat_noshape_COES~cov(cbind(efly_fem_noshape_COES$BL.ln, efly_fem_noshape_COES$OL.ln, efly_fem_noshape_COES$WL.ln, efly_fem_noshape_COES$WW.ln, efly_fem_noshape_COES$WA.sqrt.ln, efly_fem_noshape_COES$MA.sqrt.ln)))
+
+ci_noshape_COES = evolvabilityMeansMCMC(mod_noshape_COES$VCV[,1:36]/10000)
+ci_noshape_COES$post.medians*100
+
+###COLI noshape----
+mcmcdata_noshape_COLI<-as.data.frame(cbind(efly_fem_noshape_COLI$BL.ln, efly_fem_noshape_COLI$OL.ln, efly_fem_noshape_COLI$WL.ln, efly_fem_noshape_COLI$WW.ln, efly_fem_noshape_COLI$WA.sqrt.ln, efly_fem_noshape_COLI$MA.sqrt.ln)*1000)
+mcmcdata_noshape_COLI$Zone<-efly_fem_noshape_COLI$Zone
+colnames(mcmcdata_noshape_COLI)<-c("BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noshape_COLI)
+
+n = 6
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noshape_COLI<-MCMCglmm(cbind(BL.ln, OL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                           rcov= ~us(trait):units,
+                           data=mcmcdata_noshape_COLI,
+                           family=rep("gaussian", 6), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(mod_noshape_COLI$VCV)
+pmat_noshape_COLI = matrix(apply(mod_noshape_COLI$VCV, 2, median)[1:36], nrow=n)/1000000
+pmat_noshape_COLI=pmat_noshape_COLI*100
+dim(pmat_noshape_COLI)
+plot(pmat_noshape_COLI~cov(cbind(efly_fem_noshape_COLI$BL.ln, efly_fem_noshape_COLI$OL.ln, efly_fem_noshape_COLI$WL.ln, efly_fem_noshape_COLI$WW.ln, efly_fem_noshape_COLI$WA.sqrt.ln, efly_fem_noshape_COLI$MA.sqrt.ln)))
+
+ci_noshape_COLI = evolvabilityMeansMCMC(mod_noshape_COLI$VCV[,1:36]/10000)
+ci_noshape_COLI$post.medians*100
+
+###COGE noshape----
+mcmcdata_noshape_COGE<-as.data.frame(cbind(efly_fem_noshape_COGE$BL.ln, efly_fem_noshape_COGE$OL.ln, efly_fem_noshape_COGE$WL.ln, efly_fem_noshape_COGE$WW.ln, efly_fem_noshape_COGE$WA.sqrt.ln, efly_fem_noshape_COGE$MA.sqrt.ln)*1000)
+mcmcdata_noshape_COGE$Zone<-efly_fem_noshape_COGE$Zone
+colnames(mcmcdata_noshape_COGE)<-c("BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noshape_COGE)
+
+n = 6
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noshape_COGE<-MCMCglmm(cbind(BL.ln, OL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                           rcov= ~us(trait):units,
+                           data=mcmcdata_noshape_COGE,
+                           family=rep("gaussian", 6), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(mod_noshape_COGE$VCV)
+pmat_noshape_COGE = matrix(apply(mod_noshape_COGE$VCV, 2, median)[1:36], nrow=n)/1000000
+pmat_noshape_COGE=pmat_noshape_COGE*100
+dim(pmat_noshape_COGE)
+plot(pmat_noshape_COGE~cov(cbind(efly_fem_noshape_COGE$BL.ln, efly_fem_noshape_COGE$OL.ln, efly_fem_noshape_COGE$WL.ln, efly_fem_noshape_COGE$WW.ln, efly_fem_noshape_COGE$WA.sqrt.ln, efly_fem_noshape_COGE$MA.sqrt.ln)))
+
+ci_noshape_COGE = evolvabilityMeansMCMC(mod_noshape_COGE$VCV[,1:36]/10000)
+ci_noshape_COGE$post.medians*100
+
+###COSK noshape----
+mcmcdata_noshape_COSK<-as.data.frame(cbind(efly_fem_noshape_COSK$BL.ln, efly_fem_noshape_COSK$OL.ln, efly_fem_noshape_COSK$WL.ln, efly_fem_noshape_COSK$WW.ln, efly_fem_noshape_COSK$WA.sqrt.ln, efly_fem_noshape_COSK$MA.sqrt.ln)*1000)
+mcmcdata_noshape_COSK$Zone<-efly_fem_noshape_COSK$Zone
+colnames(mcmcdata_noshape_COSK)<-c("BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(mcmcdata_noshape_COSK)
+
+n = 6
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+mod_noshape_COSK<-MCMCglmm(cbind(BL.ln, OL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                           rcov= ~us(trait):units,
+                           data=mcmcdata_noshape_COSK,
+                           family=rep("gaussian", 6), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(mod_noshape_COSK$VCV)
+pmat_noshape_COSK = matrix(apply(mod_noshape_COSK$VCV, 2, median)[1:36], nrow=n)/1000000
+pmat_noshape_COSK=pmat_noshape_COSK*100
+dim(pmat_noshape_COSK)
+plot(pmat_noshape_COSK~cov(cbind(efly_fem_noshape_COSK$BL.ln, efly_fem_noshape_COSK$OL.ln, efly_fem_noshape_COSK$WL.ln, efly_fem_noshape_COSK$WW.ln, efly_fem_noshape_COSK$WA.sqrt.ln, efly_fem_noshape_COSK$MA.sqrt.ln)))
+
+ci_noshape_COSK = evolvabilityMeansMCMC(mod_noshape_COSK$VCV[,1:36]/10000)
+ci_noshape_COSK$post.medians*100
+
+
+#Tests of MCMCs----
+##HP noshape----
+diff=NULL
+perc=NULL
+for(i in 1:1000){
+  emCH = evolvabilityMeans(matrix(mod_noshape_CH$VCV[i,][1:36], nrow=6)/1000000)[1]
+  emCO = evolvabilityMeans(matrix(mod_noshape_CO$VCV[i,][1:36], nrow=6)/1000000)[1]
+  diff[i] = emCH-emCO
+  perc[i] = emCO/emCH
+}
+sum(diff>0)
+mean(diff)
+1-mean(perc)
+quantile(diff, c(0.025, 0.975))
+hist(diff*1000)
+1-sum(diff>0)/length(diff)
+sum(diff>0)/length(diff)*100
+
+##Patry noshape----
+diff=NULL
+perc=NULL
+percinv=NULL
+for(i in 1:1000){
+  emCH = evolvabilityMeans(matrix(mod_noshape_sym$VCV[i,][1:36], nrow=6)/1000000)[1]
+  emCO = evolvabilityMeans(matrix(mod_noshape_allo$VCV[i,][1:36], nrow=6)/1000000)[1]
+  diff[i] = emCH-emCO
+  perc[i] = emCO/emCH
+  percinv[i] = emCH/emCO
+}
+1-mean(perc)
+mean(percinv)
+mean(diff)
+quantile(diff, c(0.025, 0.975))
+hist(diff*1000)
+1-sum(diff>0)/length(diff)
+sum(diff>0)/length(diff)*100
+
+##HP noshape ovi vs no ovi----
+
+diff=NULL
+perc=NULL
+for(i in 1:1000){
+  emCOo = evolvabilityMeans(matrix(mod_noovi_noshape_CO$VCV[i,][1:25], nrow=5)/1000000)[1]
+  emCHo = evolvabilityMeans(matrix(mod_noovi_noshape_CH$VCV[i,][1:25], nrow=5)/1000000)[1]
+  diff[i] = emCHo-emCOo
+  perc[i] = emCOo/emCHo
+}
+mean(diff)
+hist(diff, breaks=100)
+mean(perc)
+quantile(diff, c(0.025, 0.975))
+sum(diff>0)/length(diff)*100
+(mean(perc))*100
+sd(diff)/sqrt(length(diff))
+
+#Ovi vs no ovi----
+##CH----
+
+diff=NULL
+perc=NULL
+emCH=NULL
+emCHo=NULL
+emCHm=NULL
+emCHom=NULL
+for(i in 1:1000){
+  emCH = evolvabilityMeans(matrix(mod_noshape_CH$VCV[i,][1:36], nrow=6)/1000000)[1]
+  emCHo = evolvabilityMeans(matrix(mod_noovi_noshape_CH$VCV[i,][1:25], nrow=5)/1000000)[1]
+  diff[i] = emCH-emCHo
+  perc[i] = emCHo/emCH
+  emCHm[i] = emCH
+  emCHom[i] = emCHo
+}
+
+mean(diff)
+median(diff)
+hist(diff, breaks=100)
+
+quantile(diff, c(0.025, 0.975))
+
+(1-mean(perc))*100
+1-(sum(diff>0)/length(diff))
+
+mean(emCHm)
+mean(emCHom)
+sum(diff>0)/length(diff)*100
+
+##CO----
+
+diff=NULL
+perc=NULL
+emCO=NULL
+emCOo=NULL
+emCOm=NULL
+emCOom=NULL
+for(i in 1:1000){
+  emCO = evolvabilityMeans(matrix(mod_noshape_CO$VCV[i,][1:36], nrow=6)/1000000)[1]
+  emCOo = evolvabilityMeans(matrix(mod_noovi_noshape_CO$VCV[i,][1:25], nrow=5)/1000000)[1]
+  diff[i] = emCO-emCOo
+  perc[i] = emCOo/emCO
+  emCOm[i] = emCO
+  emCOom[i] = emCOo
+}
+
+mean(diff)
+median(diff)
+hist(diff, breaks=100)
+sum(diff>0)/length(diff)*100
+quantile(diff, c(0.025, 0.975))
+
+(1-mean(perc))*100
+
+
+1-sum(diff>0)/length(diff)
+
+mean(emCOm)
+mean(emCOom)
+
+emCHom
+emCOom
+
+diffovi=emCHom-emCOom
+
+sum(diffovi>0)
+
+#Variance decomposition----
+
+#ol
+modelchol1<-lmer(OL.ln~1+(1|Zone), data=efly_fem_noshape_CH)
+summary(modelchol1)
+
+
+0.01492/sqrt(145) #sd of model / N
+0.03373/sqrt(145) #sd of residuals / N
+
+0.0002226/(0.0002226+0.0011380) # variance of model/(all variance)
+1-(0.0002226/(0.0002226+0.0011380))
+0.0011380/(0.0011380+0.0002226)
+var(efly_fem_noshape_CH$OL.ln)
+var(efly_fem_noshape_CH$OL.ln)/(0.0002226+0.0011380)
+
+modelcool1<-lmer(OL.ln~1+(1|Zone), data=efly_fem_noshape_CO)
+summary(modelcool1)
+0.0004882/(0.0004882+0.0011096)
+0.02210/sqrt(140)
+0.03331/sqrt(140)
+
+#bl
+modelchbl<-lmer(BL.ln~1+(1|Zone), data=efly_fem_noshape_CH)
+summary(modelchbl)
+2.889e-05/(2.889e-05+1.098e-03)
+0.005375/sqrt(145)
+0.033130/sqrt(145)
+
+modelcobl<-lmer(BL.ln~1+(1|Zone), data=efly_fem_noshape_CO)
+summary(modelcobl)
+0.0005810/(0.0005810+0.0007905)
+0.02410/sqrt(140)
+0.02812/sqrt(140)
+
+#wl
+modelchwl<-lmer(WL.ln~1+(1|Zone), data=efly_fem_noshape_CH)
+summary(modelchwl)
+4.533e-05/(4.533e-05+9.783e-04)
+0.006734/sqrt(145)
+0.031278/sqrt(145)
+
+modelcowl<-lmer(WL.ln~1+(1|Zone), data=efly_fem_noshape_CO)
+summary(modelcowl)
+0.0002315/(0.0002315+0.0006282)
+0.01522/sqrt(140)
+0.02506/sqrt(140)
+
+#ww
+modelchww<-lmer(WW.ln~1+(1|Zone), data=efly_fem_noshape_CH)
+summary(modelchww)
+0.0002317/(0.0002317+0.0009528)
+0.01522/sqrt(145)
+0.03087/sqrt(145)
+
+modelcoww<-lmer(WW.ln~1+(1|Zone), data=efly_fem_noshape_CO)
+summary(modelcoww)
+0.0004074/(0.0004074+0.0007883)
+0.02018/sqrt(140)
+0.02808/sqrt(140)
+
+#wa
+modelchwa<-lmer(WA.sqrt.ln~1+(1|Zone), data=efly_fem_noshape_CH)
+summary(modelchwa)
+0.0001606/(0.0001606+0.0008890)
+0.01267/sqrt(145)
+0.02982/sqrt(145)
+
+modelcowa<-lmer(WA.sqrt.ln~1+(1|Zone), data=efly_fem_noshape_CO)
+summary(modelcowa)
+0.0003435/(0.0003435+0.0006389)
+0.01853/sqrt(140)
+0.02528/sqrt(140)
+
+#ma
+modelchma<-lmer(MA.sqrt.ln~1+(1|Zone), data=efly_fem_noshape_CH)
+summary(modelchma)
+0.0004163/(0.0004163+0.0014816)
+0.02040/sqrt(145)
+0.03849/sqrt(145)
+
+modelcoma<-lmer(MA.sqrt.ln~1+(1|Zone), data=efly_fem_noshape_CO)
+summary(modelcoma)
+0.0005619/(0.0005619+0.0011212)
+0.02371/sqrt(140)
+0.03348/sqrt(140)
+
+
+#bl
+modelchbl<-lmer(BL.ln~1+(1|Zone), data=efly_fem_noshape_CH)
+summary(modelchbl)
+str(modelchbl)
+2.889e-05/(2.889e-05+1.098e-03)
+0.005375/sqrt(145)
+0.033130/sqrt(145)
+
+modelcobl<-lmer(BL.ln~1+(1|Zone), data=efly_fem_noshape_CO)
+summary(modelcobl)
+0.0005810/(0.0005810+0.0007905)
+0.02410/sqrt(140)
+0.02812/sqrt(140)
+
+
+vardecomp.trait<-c("BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln",
+                   "BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "BL.ln", "OL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln")
+vardecomp.var<-c(as.data.frame(VarCorr(modelchbl))[1,4], as.data.frame(VarCorr(modelchol1))[1,4],
+                 as.data.frame(VarCorr(modelchwl))[1,4], as.data.frame(VarCorr(modelchww))[1,4],
+                 as.data.frame(VarCorr(modelchwa))[1,4], as.data.frame(VarCorr(modelchma))[1,4],
+                 as.data.frame(VarCorr(modelcobl))[1,4], as.data.frame(VarCorr(modelcool1))[1,4],
+                 as.data.frame(VarCorr(modelcowl))[1,4], as.data.frame(VarCorr(modelcoww))[1,4],
+                 as.data.frame(VarCorr(modelcowa))[1,4], as.data.frame(VarCorr(modelcoma))[1,4],
+                 as.data.frame(VarCorr(modelchbl))[2,4], as.data.frame(VarCorr(modelchol1))[2,4],
+                 as.data.frame(VarCorr(modelchwl))[2,4], as.data.frame(VarCorr(modelchww))[2,4],
+                 as.data.frame(VarCorr(modelchwa))[2,4], as.data.frame(VarCorr(modelchma))[2,4],
+                 as.data.frame(VarCorr(modelcobl))[2,4], as.data.frame(VarCorr(modelcool1))[2,4],
+                 as.data.frame(VarCorr(modelcowl))[2,4], as.data.frame(VarCorr(modelcoww))[2,4],
+                 as.data.frame(VarCorr(modelcowa))[2,4], as.data.frame(VarCorr(modelcoma))[2,4])
+
+vardecomp.se<-c(as.data.frame(VarCorr(modelchbl))[1,5]/sqrt(dim(efly_fem_noshape_CH)[1]), as.data.frame(VarCorr(modelchol1))[1,5]/sqrt(dim(efly_fem_noshape_CH)[1]),
+                as.data.frame(VarCorr(modelchwl))[1,5]/sqrt(dim(efly_fem_noshape_CH)[1]), as.data.frame(VarCorr(modelchww))[1,5]/sqrt(dim(efly_fem_noshape_CH)[1]),
+                as.data.frame(VarCorr(modelchwa))[1,5]/sqrt(dim(efly_fem_noshape_CH)[1]), as.data.frame(VarCorr(modelchma))[1,5]/sqrt(dim(efly_fem_noshape_CH)[1]),
+                as.data.frame(VarCorr(modelcobl))[1,5]/sqrt(dim(efly_fem_noshape_CO)[1]), as.data.frame(VarCorr(modelcool1))[1,5]/sqrt(dim(efly_fem_noshape_CO)[1]),
+                as.data.frame(VarCorr(modelcowl))[1,5]/sqrt(dim(efly_fem_noshape_CO)[1]), as.data.frame(VarCorr(modelcoww))[1,5]/sqrt(dim(efly_fem_noshape_CO)[1]),
+                as.data.frame(VarCorr(modelcowa))[1,5]/sqrt(dim(efly_fem_noshape_CO)[1]), as.data.frame(VarCorr(modelcoma))[1,5]/sqrt(dim(efly_fem_noshape_CO)[1]),
+                as.data.frame(VarCorr(modelchbl))[2,5]/sqrt(dim(efly_fem_noshape_CH)[1]), as.data.frame(VarCorr(modelchol1))[2,5]/sqrt(dim(efly_fem_noshape_CH)[1]),
+                as.data.frame(VarCorr(modelchwl))[2,5]/sqrt(dim(efly_fem_noshape_CH)[1]), as.data.frame(VarCorr(modelchww))[2,5]/sqrt(dim(efly_fem_noshape_CH)[1]),
+                as.data.frame(VarCorr(modelchwa))[2,5]/sqrt(dim(efly_fem_noshape_CH)[1]), as.data.frame(VarCorr(modelchma))[2,5]/sqrt(dim(efly_fem_noshape_CH)[1]),
+                as.data.frame(VarCorr(modelcobl))[2,5]/sqrt(dim(efly_fem_noshape_CO)[1]), as.data.frame(VarCorr(modelcool1))[2,5]/sqrt(dim(efly_fem_noshape_CO)[1]),
+                as.data.frame(VarCorr(modelcowl))[2,5]/sqrt(dim(efly_fem_noshape_CO)[1]), as.data.frame(VarCorr(modelcoww))[2,5]/sqrt(dim(efly_fem_noshape_CO)[1]),
+                as.data.frame(VarCorr(modelcowa))[2,5]/sqrt(dim(efly_fem_noshape_CO)[1]), as.data.frame(VarCorr(modelcoma))[2,5]/sqrt(dim(efly_fem_noshape_CO)[1]))
+vardecomp.percent<-c(vardecomp.var[1]/(vardecomp.var[1]+vardecomp.var[13]), vardecomp.var[2]/(vardecomp.var[2]+vardecomp.var[14]),
+                     vardecomp.var[3]/(vardecomp.var[3]+vardecomp.var[15]), vardecomp.var[4]/(vardecomp.var[4]+vardecomp.var[16]),
+                     vardecomp.var[5]/(vardecomp.var[5]+vardecomp.var[17]), vardecomp.var[6]/(vardecomp.var[6]+vardecomp.var[18]),
+                     vardecomp.var[7]/(vardecomp.var[7]+vardecomp.var[19]), vardecomp.var[8]/(vardecomp.var[8]+vardecomp.var[20]),
+                     vardecomp.var[9]/(vardecomp.var[9]+vardecomp.var[21]), vardecomp.var[10]/(vardecomp.var[10]+vardecomp.var[22]),
+                     vardecomp.var[11]/(vardecomp.var[11]+vardecomp.var[23]), vardecomp.var[12]/(vardecomp.var[12]+vardecomp.var[24]),
+                     1-(vardecomp.var[1]/(vardecomp.var[1]+vardecomp.var[13])), 1-(vardecomp.var[2]/(vardecomp.var[2]+vardecomp.var[14])),
+                     1-(vardecomp.var[3]/(vardecomp.var[3]+vardecomp.var[15])), 1-(vardecomp.var[4]/(vardecomp.var[4]+vardecomp.var[16])),
+                     1-(vardecomp.var[5]/(vardecomp.var[5]+vardecomp.var[17])), 1-(vardecomp.var[6]/(vardecomp.var[6]+vardecomp.var[18])),
+                     1-(vardecomp.var[7]/(vardecomp.var[7]+vardecomp.var[19])), 1-(vardecomp.var[8]/(vardecomp.var[8]+vardecomp.var[20])),
+                     1-(vardecomp.var[9]/(vardecomp.var[9]+vardecomp.var[21])), 1-(vardecomp.var[10]/(vardecomp.var[10]+vardecomp.var[22])),
+                     1-(vardecomp.var[11]/(vardecomp.var[11]+vardecomp.var[23])), 1-(vardecomp.var[12]/(vardecomp.var[12]+vardecomp.var[24])))
+vardecomp.type<-c("Among population", "Among population", "Among population", "Among population", "Among population", "Among population", "Among population", "Among population", "Among population", "Among population", "Among population", "Among population", 
+                  "Within population", "Within population", "Within population", "Within population", "Within population", "Within population", "Within population", "Within population", "Within population", "Within population", "Within population", "Within population")
+vardecomp.hp<-c("Ancestral", "Ancestral", "Ancestral", "Ancestral", "Ancestral", "Ancestral", "Derived", "Derived", "Derived", "Derived", "Derived", "Derived", "Ancestral", "Ancestral", "Ancestral", "Ancestral", "Ancestral", "Ancestral", "Derived", "Derived", "Derived", "Derived", "Derived", "Derived")
+vardecomp.number<-seq(1,24,1)
+vardecomp.df<-data.frame(vardecomp.trait, vardecomp.hp, vardecomp.var, vardecomp.type, vardecomp.percent, vardecomp.se)
+summary(vardecomp.df)
+
+t_within<-subset(vardecomp.df, vardecomp.type=="Within population")
+t_between<-subset(vardecomp.df, vardecomp.type=="Among population")
+t.test(t_within$vardecomp.var, t_between$vardecomp.var, paired=T)
+
+
+
+vardecomp.sum<-summarySE(vardecomp.df, measurevar='vardecomp.percent', groupvars=c('vardecomp.hp', 'vardecomp.type'))
+
+##Plot----
+ggplot(vardecomp.df, aes(y=vardecomp.percent*100, x=vardecomp.hp, fill=vardecomp.hp, )) +
+  geom_col(aes(alpha=vardecomp.type), position="stack") +
+  scale_fill_manual(values = c("darkviolet","darkgreen")) +
+  scale_alpha_manual(values = c(0.5, 0.8))+
+  ylab("Variance (%)") +
+  xlab(" ") + 
+  facet_grid(.~vardecomp.trait, labeller = as_labeller(vardecomp.trait))+ theme(panel.spacing = unit(0.2, "lines")) +
+  theme(axis.text.x = element_blank(), 
+        legend.title=element_blank(), 
+        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+        legend.text=element_text(size=10), axis.title=element_text(size=12,face="bold"),
+        legend.spacing.y = unit(0.1, 'mm'),axis.text=element_text(size=10))  +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+
+
+#Dimension reduction----
+
+evCH = eigen(pmat_CH)
+evCO = eigen(pmat_CO)
+
+cor(evCH$values, evCO$values)
+
+betas=randomBeta(1000, 12)
+
+
+chvals = evolvabilityBeta(pmat_CH, betas)$e
+covals = evolvabilityBeta(pmat_CO, betas)$e
+dimred<-plot(chvals, covals, xlab="Ancestral flies P-matrix", ylab="Derived flies P-matrix", cex.lab=1.4, cex.axis=1.2)+text(0.292, 0.004, expression(R^2==0.94), cex=1.4)
+summary(lm(chvals~covals))$r.squared
+
+dimred_CI=NULL
+
+for(j in 1:1000){
+  temp=matrix(mod_CH$VCV[j,], nrow=12)/10000
+  tempchvals=evolvabilityBeta(temp, betas)$e
+  temp2=matrix(mod_CO$VCV[j,], nrow=12)/10000
+  tempcovals=evolvabilityBeta(temp2, betas)$e
+  dimred_CI[j]<-(summary(lm(tempchvals~tempcovals))$r.squared)
+}
+mean(dimred_CI)
+quantile(dimred_CI, c(0.025, 0.975))
+
+
+
+betas_noshape=randomBeta(1000, 6)
+chvals_noshape = evolvabilityBeta(pmat_noshape_CH, betas_noshape)$e
+covals_noshape = evolvabilityBeta(pmat_noshape_CO, betas_noshape)$e
+dimred<-plot(chvals_noshape, covals_noshape, xlab="Ancestral flies P-matrix", ylab="Derived flies P-matrix", cex.lab=1.4, cex.axis=1.2)+text(0.41, 0.004, expression(R^2==0.94), cex=1.4)
+summary(lm(chvals_noshape~covals_noshape))$r.squared
+summary(lm(chvals_noshape~covals_noshape))$coefficients[2,1]
+
+dimred_CI=NULL
+dimred_EST=NULL
+for(j in 1:1000){
+  temp=matrix(mod_noshape_CH$VCV[j,], nrow=6)/10000
+  tempchvals=evolvabilityBeta(temp, betas_noshape)$e
+  temp2=matrix(mod_noshape_CO$VCV[j,], nrow=6)/10000
+  tempcovals=evolvabilityBeta(temp2, betas_noshape)$e
+  dimred_CI[j]<-(summary(lm(tempchvals~tempcovals))$r.squared)
+  dimred_EST[j]<-(summary(lm(tempchvals~tempcovals))$coefficients[2,1])
+}
+mean(dimred_CI)
+quantile(dimred_CI, c(0.025, 0.975))
+mean(dimred_EST)
+quantile(dimred_EST, c(0.025, 0.975))
+
+
+evCH_noshape = eigen(pmat_noshape_CH)
+evCO_noshape = eigen(pmat_noshape_CO)
+evCHES_noshape = eigen(pmat_noshape_CHES)
+evCOES_noshape = eigen(pmat_noshape_COES)
+evCHSK_noshape = eigen(pmat_noshape_CHSK)
+evCOSK_noshape = eigen(pmat_noshape_COSK)
+evCHFI_noshape = eigen(pmat_noshape_CHFI)
+evCOLI_noshape = eigen(pmat_noshape_COLI)
+evCHST_noshape = eigen(pmat_noshape_CHST)
+evCOGE_noshape = eigen(pmat_noshape_COGE)
+
+t1ch_noshape = c(evCH_noshape$vectors[,1] %*% t(FM_noshape))
+t2ch_noshape = c(evCH_noshape$vectors[,2] %*% t(FM_noshape))
+t1co_noshape = c(evCO_noshape$vectors[,1] %*% t(FM_noshape))
+t2co_noshape = c(evCO_noshape$vectors[,2] %*% t(FM_noshape))
+t1ches_noshape = c(evCHES_noshape$vectors[,1] %*% t(FM_noshape))
+t2ches_noshape = c(evCHES_noshape$vectors[,2] %*% t(FM_noshape))
+t1coes_noshape = c(evCOES_noshape$vectors[,1] %*% t(FM_noshape))
+t2coes_noshape = c(evCOES_noshape$vectors[,2] %*% t(FM_noshape))
+t1chsk_noshape = c(evCHSK_noshape$vectors[,1] %*% t(FM_noshape))
+t2chsk_noshape = c(evCHSK_noshape$vectors[,2] %*% t(FM_noshape))
+t1cosk_noshape = c(evCOSK_noshape$vectors[,1] %*% t(FM_noshape))
+t2cosk_noshape = c(evCOSK_noshape$vectors[,2] %*% t(FM_noshape))
+t1chfi_noshape = c(evCHFI_noshape$vectors[,1] %*% t(FM_noshape))
+t2chfi_noshape = c(evCHFI_noshape$vectors[,2] %*% t(FM_noshape))
+t1coli_noshape = c(evCOLI_noshape$vectors[,1] %*% t(FM_noshape))
+t2coli_noshape = c(evCOLI_noshape$vectors[,2] %*% t(FM_noshape))
+t1chst_noshape = c(evCHST_noshape$vectors[,1] %*% t(FM_noshape))
+t2chst_noshape = c(evCHST_noshape$vectors[,2] %*% t(FM_noshape))
+t1coge_noshape = c(evCOGE_noshape$vectors[,1] %*% t(FM_noshape))
+t2coge_noshape = c(evCOGE_noshape$vectors[,2] %*% t(FM_noshape))
+
+cmch_noshape = cov(cbind(t1ch_noshape, t2ch_noshape))
+cmco_noshape = cov(cbind(t1co_noshape, t2co_noshape))
+cmches_noshape = cov(cbind(t1ches_noshape, t2ches_noshape))
+cmcoes_noshape = cov(cbind(t1coes_noshape, t2coes_noshape))
+cmchsk_noshape = cov(cbind(t1chsk_noshape, t2chsk_noshape))
+cmcosk_noshape = cov(cbind(t1cosk_noshape, t2cosk_noshape))
+cmchfi_noshape = cov(cbind(t1chfi_noshape, t2chfi_noshape))
+cmcoli_noshape = cov(cbind(t1coli_noshape, t2coli_noshape))
+cmchst_noshape = cov(cbind(t1chst_noshape, t2chst_noshape))
+cmcoge_noshape = cov(cbind(t1coge_noshape, t2coge_noshape))
+
+eigen(cov(FM_noshape))$values[1]/sum(eigen(cov(FM_noshape))$values)
+eigen(cov(FM_noshape))$values[2]/sum(eigen(cov(FM_noshape))$values)
+eigen(cov(FM_noshape))$values[3]/sum(eigen(cov(FM_noshape))$values)
+eigen(cov(FM_noshape))$values[4]/sum(eigen(cov(FM_noshape))$values)
+eigen(cov(FM_noshape))$values[5]/sum(eigen(cov(FM_noshape))$values)
+eigen(cov(FM_noshape))$values[6]/sum(eigen(cov(FM_noshape))$values)
+
+
+ev = eigen(pmat_noshapezone)
+t1 = c(ev$vectors[,1] %*% t(FM_noshape))
+t2 = c(ev$vectors[,2] %*% t(FM_noshape))
+t3 = c(ev$vectors[,3] %*% t(FM_noshape))
+t4 = c(ev$vectors[,4] %*% t(FM_noshape))
+t5 = c(ev$vectors[,5] %*% t(FM_noshape))
+t6 = c(ev$vectors[,6] %*% t(FM_noshape))
+t1means<-tapply(t1, efly_fem_noshape$Zone, mean)
+t2means<-tapply(t2, efly_fem_noshape$Zone, mean)
+
+
+
+covmatlist=list(
+  cov(cbind(t1[which(efly_fem_noshape$Zone=="CHES")],t2[which(efly_fem_noshape$Zone=="CHES")])),#/length(t1[which(efly_fem$Zone=="CHES")]),
+  cov(cbind(t1[which(efly_fem_noshape$Zone=="CHFI")],t2[which(efly_fem_noshape$Zone=="CHFI")])),#/length(t1[which(efly_fem$Zone=="CHFI")]),
+  cov(cbind(t1[which(efly_fem_noshape$Zone=="CHSK")],t2[which(efly_fem_noshape$Zone=="CHSK")])),#/length(t1[which(efly_fem$Zone=="CHSK")]),
+  cov(cbind(t1[which(efly_fem_noshape$Zone=="CHST")],t2[which(efly_fem_noshape$Zone=="CHST")]))#/length(t1[which(efly_fem$Zone=="CHST")])
+)
+
+covmatlistco=list(
+  cov(cbind(t1[which(efly_fem_noshape$Zone=="COES")],t2[which(efly_fem_noshape$Zone=="COES")])),
+  cov(cbind(t1[which(efly_fem_noshape$Zone=="COGE")],t2[which(efly_fem_noshape$Zone=="COGE")])),
+  cov(cbind(t1[which(efly_fem_noshape$Zone=="COLI")],t2[which(efly_fem_noshape$Zone=="COLI")])),
+  cov(cbind(t1[which(efly_fem_noshape$Zone=="COSK")],t2[which(efly_fem_noshape$Zone=="COSK")]))
+)
+
+chmean = apply(simplify2array(covmatlist), 1:2, mean)
+comean = apply(simplify2array(covmatlistco), 1:2, mean)
+chesmean=apply((cov(cbind(t1[which(efly_fem$Zone=="CHES")],t2[which(efly_fem$Zone=="CHES")]))), 1:2, mean)
+
+plot(seq(-1.375,-0.875, length.out = 2), seq(-0.4,0.1, length.out = 2), col="white", xlab="69.5% of variation", ylab="17.5% of variation", main='Female phenotypic variance-covariance matrices')
+points(t1means,t2means, pch=0, cex=1.5, col=c("darkviolet", "darkviolet", "darkviolet", "darkviolet", "darkgreen", "darkgreen", "darkgreen","darkgreen"))
+points(tapply(t1, efly_fem$Hostplant, mean),tapply(t2, efly_fem$Hostplant, mean),pch=15, cex=2, col=c("darkviolet", "darkgreen"))
+lines(ellipse(chmean, centre=c(mean(t1means[1:4]), mean(t2means[1:4]))), col="darkviolet", lwd=3)
+lines(ellipse(comean, centre=c(mean(t1means[5:8]), mean(t2means[5:8]))), col="darkgreen", lwd=3)
+lines(ellipse(chesmean, centre=c(mean(t1means[1]), mean(t2means[1]))), col=rgb(0.578125,0,0.8242188,0.4), lty=2)
+legend(-0.98, 0.125, c("Host race", "Population", "Ancestral", "Derived"), pch=c(15, 0, 21, 1),lty=c(1, 2, 0, 0), col=c("black", "black", "darkviolet", "darkgreen"), bty="n")
+lines(ellipse(cov(cbind(t1[which(efly_fem$Zone=="CHFI")],t2[which(efly_fem$Zone=="CHFI")])), centre = c(mean(t1means[2]), mean(t2means[2]))), col=rgb(0.578125,0,0.8242188,0.4), lty=2)
+lines(ellipse(cov(cbind(t1[which(efly_fem$Zone=="CHSK")],t2[which(efly_fem$Zone=="CHSK")])), centre = c(mean(t1means[3]), mean(t2means[3]))), col=rgb(0.578125,0,0.8242188,0.4), lty=2)
+lines(ellipse(cov(cbind(t1[which(efly_fem$Zone=="CHST")],t2[which(efly_fem$Zone=="CHST")])), centre = c(mean(t1means[4]), mean(t2means[4]))), col=rgb(0.578125,0,0.8242188,0.4), lty=2)
+lines(ellipse(cov(cbind(t1[which(efly_fem$Zone=="COES")],t2[which(efly_fem$Zone=="COES")])), centre = c(mean(t1means[5]), mean(t2means[5]))), col=rgb(0,0.390625,0,0.4), lty=2)
+lines(ellipse(cov(cbind(t1[which(efly_fem$Zone=="COGE")],t2[which(efly_fem$Zone=="COGE")])), centre = c(mean(t1means[6]), mean(t2means[6]))), col=rgb(0,0.390625,0,0.4), lty=2)
+lines(ellipse(cov(cbind(t1[which(efly_fem$Zone=="COLI")],t2[which(efly_fem$Zone=="COLI")])), centre = c(mean(t1means[7]), mean(t2means[7]))), col=rgb(0,0.390625,0,0.4), lty=2)
+lines(ellipse(cov(cbind(t1[which(efly_fem$Zone=="COSK")],t2[which(efly_fem$Zone=="COSK")])), centre = c(mean(t1means[8]), mean(t2means[8]))), col=rgb(0,0.390625,0,0.4), lty=2)
+
+
+#variance of eigenvectors
+
+eigen(cov(FM_noshape))$values/sum(eigen(cov(FM_noshape))$values)
+
+
+vectors<-c(eigen(cov(FM_noshape))$values/sum(eigen(cov(FM_noshape))$values),
+           eigen(cov(MM_noshape))$values/sum(eigen(cov(MM_noshape))$values),
+           eigen(cov(FM_noshape_CHES))$values/sum(eigen(cov(FM_noshape_CHES))$values),
+           eigen(cov(MM_noshape_CHES))$values/sum(eigen(cov(MM_noshape_CHES))$values),
+           eigen(cov(FM_noshape_CHFI))$values/sum(eigen(cov(FM_noshape_CHFI))$values),
+           eigen(cov(MM_noshape_CHFI))$values/sum(eigen(cov(MM_noshape_CHFI))$values),
+           eigen(cov(FM_noshape_CHSK))$values/sum(eigen(cov(FM_noshape_CHSK))$values),
+           eigen(cov(MM_noshape_CHSK))$values/sum(eigen(cov(MM_noshape_CHSK))$values),
+           eigen(cov(FM_noshape_CHST))$values/sum(eigen(cov(FM_noshape_CHST))$values),
+           eigen(cov(MM_noshape_CHST))$values/sum(eigen(cov(MM_noshape_CHST))$values),
+           eigen(cov(FM_noshape_COES))$values/sum(eigen(cov(FM_noshape_COES))$values),
+           eigen(cov(MM_noshape_COES))$values/sum(eigen(cov(MM_noshape_COES))$values),
+           eigen(cov(FM_noshape_COGE))$values/sum(eigen(cov(FM_noshape_COGE))$values),
+           eigen(cov(MM_noshape_COGE))$values/sum(eigen(cov(MM_noshape_COGE))$values),
+           eigen(cov(FM_noshape_COLI))$values/sum(eigen(cov(FM_noshape_COLI))$values),
+           eigen(cov(MM_noshape_COLI))$values/sum(eigen(cov(MM_noshape_COLI))$values),
+           eigen(cov(FM_noshape_COSK))$values/sum(eigen(cov(FM_noshape_COSK))$values),
+           eigen(cov(MM_noshape_COSK))$values/sum(eigen(cov(MM_noshape_COSK))$values))
+
+sex<-rep(c(rep("Female",6),rep("Male", 5)),9)
+
+dimn<-rep(c(seq(1,6,1),seq(1,5,1)),9)
+
+pop<-c(rep("Mean",11), rep("CHES",11), rep("CHFI",11), rep("CHSK",11), rep("CHST",11),
+       rep("COES",11), rep("COGE",11), rep("COLI",11), rep("COSK",11))
+
+eigendf<-as.data.frame(list(Vectors=vectors, Pop=pop, Sex=sex, Dimension=dimn))
+as.data.frame(eigendf)
+
+stickmeans<-ggplot(subset(eigendf, Pop=="Mean"), aes(x=Dimension, y= Vectors))+
+  geom_bar(stat='identity')+
+  ggtitle("Mean")+
+  ylab("Proportional variance") +
+  facet_wrap(~Sex, ncol=1)+
+  scale_x_continuous(breaks=1:6)+
+  #facet_grid(rows=3, cols=3, vars(Pop), scales='free')+
+  theme(plot.title=element_text(face="bold", size="16"), axis.text.x = element_text(angle = 0, vjust=0.5), legend.position = "none", 
+        legend.title=element_blank(), strip.background=element_rect(fill="white"), 
+        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+        legend.text=element_text(size=12), axis.title=element_text(size=16,face="bold"),
+        legend.spacing.y = unit(0.1, 'mm'),axis.text=element_text(size=14))  +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        strip.text.x = element_text(size=14,),
+        strip.text.y = element_text(size=14,)) 
+
+
+#Evolvability plots----
+
+##No shape----
+
+HP_emean_noshape<-c(ci_noshape_CH$post.medians[1,1], ci_noshape_CO$post.medians[1,1])
+HP_elow_noshape<-c(ci_noshape_CH$post.medians[1,2], ci_noshape_CO$post.medians[1,2])
+HP_ehigh_noshape<-c(ci_noshape_CH$post.medians[1,3], ci_noshape_CO$post.medians[1,3])
+HP_eHP_noshape<-c("Ancestral", "Derived")
+plot_df_HP_noshape<-data.frame(HP_eHP_noshape, HP_emean_noshape, HP_elow_noshape, HP_ehigh_noshape)
+Z_ePatry<-c("Sympatric", "Sympatric", "Allopatric", "Allopatric", "Allopatric", "Sympatric", "Allopatric", "Sympatric")
+Z_emean_noshape<-c(ci_noshape_CHES$post.medians[1,1],ci_noshape_CHSK$post.medians[1,1],ci_noshape_CHST$post.medians[1,1],ci_noshape_CHFI$post.medians[1,1],ci_noshape_COGE$post.medians[1,1],ci_noshape_COSK$post.medians[1,1],ci_noshape_COLI$post.medians[1,1], ci_noshape_COES$post.medians[1,1])
+Z_elow_noshape<-c(ci_noshape_CHES$post.medians[1,2],ci_noshape_CHSK$post.medians[1,2],ci_noshape_CHST$post.medians[1,2],ci_noshape_CHFI$post.medians[1,2],ci_noshape_COGE$post.medians[1,2],ci_noshape_COSK$post.medians[1,2],ci_noshape_COLI$post.medians[1,2], ci_noshape_COES$post.medians[1,2])
+Z_ehigh_noshape<-c(ci_noshape_CHES$post.medians[1,3],ci_noshape_CHSK$post.medians[1,3],ci_noshape_CHST$post.medians[1,3],ci_noshape_CHFI$post.medians[1,3],ci_noshape_COGE$post.medians[1,3],ci_noshape_COSK$post.medians[1,3],ci_noshape_COLI$post.medians[1,3], ci_noshape_COES$post.medians[1,3])
+Z_eHP_noshape<-c("Ancestral", "Ancestral", "Ancestral", "Ancestral", "Derived", "Derived", "Derived", "Derived")
+Z_eZ_noshape<-c("CHES", "CHSK", "CHST", "CHFI", "COGE", "COSK", "COLI", "COES")
+Z_eZ_noshape<-revalue(Z_eZ_noshape, c("CHST"="1","CHFI"="2","CHSK"="3","CHES"="4","COES"="5","COSK"="6","COLI"="7","COGE"="8"))
+
+plot_df_Z_noshape<-data.frame(Z_eHP_noshape, Z_eZ_noshape, Z_emean_noshape, Z_elow_noshape, Z_ehigh_noshape)
+medians_noshape <- data.frame(Z_eHP_noshape=c('Ancestral','Derived'), xval=c(ci_noshape_CH$post.medians[1,1],ci_noshape_CO$post.medians[1,1]))
+lows_noshape<-data.frame(Z_eHP_noshape=c('Ancestral','Derived'), xval=c(ci_noshape_CH$post.medians[1,2],ci_noshape_CO$post.medians[1,2]))
+highs_noshape<-data.frame(Z_eHP_noshape=c('Ancestral','Derived'), xval=c(ci_noshape_CH$post.medians[1,3],ci_noshape_CO$post.medians[1,3]))
+
+
+
+evolv_z_plot_noshape<-ggplot(plot_df_Z_noshape, aes(x=Z_eZ_noshape, y=Z_emean_noshape, colour=Z_eHP_noshape)) + 
+  geom_errorbar(aes(ymin=Z_elow_noshape, ymax=Z_ehigh_noshape, width=.4)) +
+  ggtitle('                                        Female evolvability')+
+  ylab("Evolvability") +
+  xlab(" ") + 
+  facet_grid(.~Z_eHP_noshape, scales='free') +
+  scale_color_manual(values = c("darkviolet","darkgreen")) + 
+  scale_x_discrete(labels = c("1" = "CHST", "2" = "CHFI", "3" = "CHSK", "4"="CHES", "5" = "COES", "6" = "COSK", "7" = "COLI", "8"="COGE"))+
+  geom_hline(data=medians_noshape, aes(yintercept=xval), size=0.5) +
+  geom_hline(data=lows_noshape, aes(yintercept=xval), linetype="dashed", size=0.5) +
+  geom_hline(data=highs_noshape, aes(yintercept=xval), linetype="dashed", size=0.5) +
+  geom_point(aes(x=Z_eZ_noshape, y=Z_emean_noshape, colour=Z_eHP_noshape,shape=Z_ePatry),size=5) +
+  theme(plot.title=element_text(face="bold", size="16"), axis.text.x = element_text(angle = 0), legend.position = c(0.9, 0.9), 
+        legend.title=element_blank(), strip.background=element_rect(fill="white"), 
+        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+        legend.text=element_text(size=12), axis.title=element_text(size=16,face="bold"),
+        legend.spacing.y = unit(0.1, 'mm'),axis.text=element_text(size=14))  +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        strip.text.x = element_text(size=14,),
+        strip.text.y = element_text(size=14,)) 
+evolv_z_plot_noshape
+
+
+testmatr<-FCV_noshape[-2,-2]*100
+testmatrc<-FCV_noshape*100
+testcondG=conditionalG(testmatrc, condition_on=2)
+tested<-evolvabilityMeans(testcondG)[1]/evolvabilityMeans(testmatrc)[1]
+
+chtestmatr<-FCV_noshape_CH[-2,-2]*100
+chtestmatrc<-FCV_noshape_CH*100
+chtestcondG=conditionalG(chtestmatrc, condition_on=2)
+chtested<-evolvabilityMeans(chtestcondG)[1]/evolvabilityMeans(chtestmatrc)[1]
+
+cotestmatr<-FCV_noshape_CO[-2,-2]*100
+cotestmatrc<-FCV_noshape_CO*100
+cotestcondG=conditionalG(cotestmatrc, condition_on=2)
+cotested<-evolvabilityMeans(cotestcondG)[1]/evolvabilityMeans(cotestmatrc)[1]
+
+##HP vs HP----
+
+HP_emean<-c(ci_noshape_CH$post.medians[1,1], ci_noshape_CO$post.medians[1,1])
+HP_elow<-c(ci_noshape_CH$post.medians[1,2], ci_noshape_CO$post.medians[1,2])
+HP_ehigh<-c(ci_noshape_CH$post.medians[1,3], ci_noshape_CO$post.medians[1,3])
+HP_eHP<-c("Ancestral", "Derived")
+plot_df_HP<-data.frame(HP_eHP, HP_emean, HP_elow, HP_ehigh)
+
+evolv_HP_plot<-ggplot(plot_df_HP, aes(x=HP_eHP, y=HP_emean, colour=HP_eHP)) + 
+  geom_errorbar(aes(ymin=HP_elow, ymax=HP_ehigh, width=.4), size=2) +
+  ggtitle('Female evolvability of host races')+
+  ylab("Evolvability") + 
+  xlab(" ") + 
+  scale_color_manual(values = c("darkviolet","darkgreen")) + 
+  geom_point(aes(x=HP_eHP, y=HP_emean), shape=3, size=6, stroke=3) +
+  theme(plot.title=element_text(face="bold", size="16"), axis.text.x = element_text(angle = 0), legend.position = "none", 
+        legend.title=element_blank(), 
+        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+        legend.text=element_text(size=14), axis.title=element_text(size=16,face="bold"),
+        legend.spacing.y = unit(0.1, 'mm'),axis.text=element_text(size=14))  +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        strip.text.x = element_text(size=14,),
+        strip.text.y = element_text(size=14,)) 
+evolv_HP_plot
+
+
+
+##Allopatry vs Sympatry----
+
+Patry_emean<-c(ci_noshape_sym$post.medians[1,1], ci_noshape_allo$post.medians[1,1])
+Patry_elow<-c(ci_noshape_sym$post.medians[1,2], ci_noshape_allo$post.medians[1,2])
+Patry_ehigh<-c(ci_noshape_sym$post.medians[1,3], ci_noshape_allo$post.medians[1,3])
+Patry_ePatry<-c("Allopatric", "Sympatric")
+plot_df_Patry<-data.frame(Patry_ePatry, Patry_emean, Patry_elow, Patry_ehigh)
+
+evolv_Patry_plot<-ggplot(plot_df_Patry, aes(x=Patry_ePatry, y=Patry_emean)) + 
+  geom_errorbar(aes(ymin=Patry_elow, ymax=Patry_ehigh, width=.4), size=2) +
+  ggtitle('Female evolvability of coexistence')+
+  ylab("Evolvability") +
+  xlab(" ") + 
+  geom_point(aes(x=Patry_ePatry, y=Patry_emean, shape=Patry_ePatry),size=8) +
+  theme(plot.title=element_text(face="bold", size="16"), axis.text.x = element_text(angle = 0), legend.position = "none", 
+        legend.title=element_blank(), 
+        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+        legend.text=element_text(size=14), axis.title=element_text(size=16,face="bold"),
+        legend.spacing.y = unit(0.1, 'mm'),axis.text=element_text(size=14))  +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        strip.text.x = element_text(size=14,),
+        strip.text.y = element_text(size=14,)) 
+evolv_Patry_plot
+
+##Fem vs male (no ovi)----
+
+sex_emean_noshape<-c(ci_noovi_CH$post.medians[1,1], ci_noovi_CO$post.medians[1,1], ciM_noshape_CH$post.medians[1,1], ciM_noshape_CO$post.medians[1,1])
+sex_elow_noshape<-c(ci_noovi_CH$post.medians[1,2], ci_noovi_CO$post.medians[1,2], ciM_noshape_CH$post.medians[1,2], ciM_noshape_CO$post.medians[1,2])
+sex_ehigh_noshape<-c(ci_noovi_CH$post.medians[1,3], ci_noovi_CO$post.medians[1,3], ciM_noshape_CH$post.medians[1,3], ciM_noshape_CO$post.medians[1,3])
+sex_esex_noshape<-c("Female (without ovipositor)", "Female (without ovipositor)", "Male", "Male")
+sex_eHP_noshape<-c("Ancestral", "Derived", "Ancestral", "Derived")
+plot_df_sex_noshape<-data.frame(sex_esex_noshape, sex_eHP_noshape, sex_emean_noshape, sex_elow_noshape, sex_ehigh_noshape)
+
+plot_df_Z_noshape<-data.frame(Z_eHP_noshape, Z_eZ_noshape, Z_emean_noshape, Z_elow_noshape, Z_ehigh_noshape)
+medians_noshape <- data.frame(Z_eHP_noshape=c('Ancestral','Derived'), xval=c(ci_noshape_CH$post.medians[1,1],ci_noshape_CO$post.medians[1,1]))
+lows_noshape<-data.frame(Z_eHP_noshape=c('Ancestral','Derived'), xval=c(ci_noshape_CH$post.medians[1,2],ci_noshape_CO$post.medians[1,2]))
+highs_noshape<-data.frame(Z_eHP_noshape=c('Ancestral','Derived'), xval=c(ci_noshape_CH$post.medians[1,3],ci_noshape_CO$post.medians[1,3]))
+
+
+
+evolv_sex_plot_noshape<-ggplot(plot_df_sex_noshape, aes(x=sex_esex_noshape, y=sex_emean_noshape, colour=sex_eHP_noshape)) + 
+  geom_errorbar(aes(ymin=sex_elow_noshape, ymax=sex_ehigh_noshape), width=.4,position=position_dodge(.3)) +
+  ylab("Evolvability") +
+  xlab(" ") + 
+  scale_color_manual(values = c("darkviolet","darkgreen")) + 
+  geom_point(aes(y=sex_emean_noshape, colour=sex_eHP_noshape),position=position_dodge(.3),size=5) +
+  theme(plot.title=element_text(face="bold", size="16"), axis.text.x = element_text(angle = 0), legend.position = c(0.9, 0.9), 
+        legend.title=element_blank(), strip.background=element_rect(fill="white"), 
+        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+        legend.text=element_text(size=12), axis.title=element_text(size=16,face="bold"),
+        legend.spacing.y = unit(0.1, 'mm'),axis.text=element_text(size=14))  +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        strip.text.x = element_text(size=14,),
+        strip.text.y = element_text(size=14,)) 
+evolv_sex_plot_noshape
+
+
+#Beta evolvability----
+
+
+testmatr<-FCV_noshape[-2,-2]*100
+testmatrc<-FCV_noshape*100
+testcondG=conditionalG(testmatrc, condition_on=2)
+evolvabilityMeans(testcondG)[1]/evolvabilityMeans(testmatrc)[1]
+
+
+chtestmatr<-FCV_noshape_CH[-2,-2]*100
+chtestmatrc<-FCV_noshape_CH*100
+chtestcondG=conditionalG(chtestmatrc, condition_on=2)
+evolvabilityMeans(chtestcondG)[1]/evolvabilityMeans(chtestmatrc)[1]
+
+cotestmatr<-FCV_noshape_CO[-2,-2]*100
+cotestmatrc<-FCV_noshape_CO*100
+cotestcondG=conditionalG(cotestmatrc, condition_on=2)
+evolvabilityMeans(cotestcondG)[1]/evolvabilityMeans(cotestmatrc)[1]
+
+
+
+
+plot(seq(13.1,18,length.out = 100), seq(-0.02,0.6,length.out = 100), col="white", xlab="Divergence from ancestral host race (%)", ylab="Evolvability along divergence vector (%)",cex.lab=1.8, cex.axis=1.2) 
+
+matr<-pmat_noshape_CH[-2,-2] #matrix set up from reference host race
+matrc<-pmat_noshape_CH #matrix set up from reference host race
+condG=conditionalG(matrc, condition_on=2)
+
+
+abline(h=evolvabilityMeans(matr)[1], lty=1)
+abline(h=evolvabilityMeans(matr)[2], lty=1)
+abline(h=evolvabilityMeans(matr)[3], lty=1)
+abline(h=evolvabilityMeans(matr)[4], lty=5, col="darkgrey")
+
+copoplist<-list(FM_noshape_COSK, FM_noshape_COLI, FM_noshape_COES, FM_noshape_COGE)
+
+
+div=NULL
+out=vector()
+outc=vector()
+outg=vector()
+for(i in copoplist){
+  div<-(log(colMeans(exp(FM_noshape_CH[,-2]))-log(colMeans(exp(i)[,-2])))) #co as ref against ch pop
+  unitdiv<-div/sqrt(sum(div^2))
+  print(sqrt(sum(unitdiv^2)))
+  print(mean(div)*100)
+  ebeta<-((evolvabilityBeta(matr, unitdiv)$e) )#-evolvabilityMeans(matr)[1])
+  cbeta<-((evolvabilityBeta(matr, unitdiv)$c) )#-evolvabilityMeans(matr)[4])
+  print(ebeta-evolvabilityMeans(matr)[1])
+  print(cbeta-evolvabilityMeans(matr)[4])
+  points(mean(div)*100-0.1,ebeta,pch=16, cex=2, col='darkgreen')
+  points(mean(div)*100+0.1,cbeta,pch=18, cex=2.5, col='darkgreen')
+  ovibeta<-((evolvabilityBeta(condG, unitdiv)$e) )#-evolvabilityMeans(matr)[1])
+  points(mean(div)*100,ovibeta,pch=15, cex=2, col='darkgreen')
+  for(j in 1:1000){
+    temp=matrix(mod_noshape_CH$VCV[j,], nrow=6)/10000
+    out[j]=evolvabilityBeta(temp[-2,-2], unitdiv)$e #-evolvabilityMeans(matr)[1]
+  }
+  arrows(x0=mean(div)*100-0.1, y0=quantile(out, c(0.025, 0.975))[1],
+         x1=mean(div)*100-0.1, y1=quantile(out, c(0.025, 0.975))[2], 
+         code=3, col="darkgreen", lwd=2, length=0.05, angle=90)
+  
+  for(k in 1:1000){
+    temp=matrix(mod_noshape_CH$VCV[k,], nrow=6)/10000
+    outc[k]=evolvabilityBeta(temp[-2,-2], unitdiv)$c #-evolvabilityMeans(matr)[4]
+  }
+  arrows(x0=mean(div)*100+0.1, y0=quantile(outc, c(0.025, 0.975))[1],
+         x1=mean(div)*100+0.1, y1=quantile(outc, c(0.025, 0.975))[2], 
+         code=3, col="darkgreen", lwd=2, length=0.05, angle=90, lty=3)
+    for(l in 1:1000){
+      temp=matrix(mod_noshape_CH$VCV[l,], nrow=6)/10000
+      condtemp=conditionalG(temp, condition_on=2)
+      outg[l]=evolvabilityBeta(condtemp, unitdiv)$e #-evolvabilityMeans(matr)[1]
+    }
+    arrows(x0=mean(div)*100, y0=quantile(outg, c(0.025, 0.975))[1],
+           x1=mean(div)*100, y1=quantile(outg, c(0.025, 0.975))[2], 
+           code=3, col="darkgreen", lwd=2, length=0.05, angle=90, lty=3)
+}
+
+legend(16.42, 0.65, 
+       legend=c("Mean", "Conditioned 
+on ovipositor", "Conditional"),
+       pch=c(16,15,18), lty=c(1,3,3), cex=1.4, col=c("darkgreen", "darkgreen", "darkgreen"),
+       box.lty=0, bty="n",y.intersp=1)
+axis(4, at=c(evolvabilityMeans(matr)[2], evolvabilityMeans(matr)[1], evolvabilityMeans(matr)[3]), las=1, labels=c('Min', 'Mean', 'Max'))
+
+
+
+
+#Autonomy----
+
+
+traits<-seq(1, 6, 1)
+for(j in traits){
+  condon=matrix(data=0, nrow=6, ncol=4)
+  for(i in c(1:6)[-j]){
+    condon[i,1] = evolvabilityBeta(pmat_noshape_CH[c(j,i),c(j,i)], c(0,1))$a
+    condon[i,2] = evolvabilityBeta(pmat_noshape_CO[c(j,i),c(j,i)], c(0,1))$a
+    condon[i,3] = evolvabilityBeta(pmat_noshape_sym[c(j,i),c(j,i)], c(0,1))$a
+    condon[i,4] = evolvabilityBeta(pmat_noshape_allo[c(j,i),c(j,i)], c(0,1))$a
+  }
+  assign(paste0("condon", j), condon)
+  assign(paste0("condmeanCH", j), mean(condon[-j,1]))
+  assign(paste0("condmeanCO", j), mean(condon[-j,2]))
+  assign(paste0("condmeanSYM", j), mean(condon[-j,3]))
+  assign(paste0("condmeanALLO", j), mean(condon[-j,4]))
+}
+condmeanCH<-as.vector(c(condmeanCH1, condmeanCH2, condmeanCH3, condmeanCH4, condmeanCH5, condmeanCH6))
+condmeanCO<-as.vector(c(condmeanCO1, condmeanCO2, condmeanCO3, condmeanCO4, condmeanCO5, condmeanCO6))
+condmeanSYM<-as.vector(c(condmeanSYM1, condmeanSYM2, condmeanSYM3, condmeanSYM4, condmeanSYM5, condmeanSYM6))
+condmeanALLO<-as.vector(c(condmeanALLO1, condmeanALLO2, condmeanALLO3, condmeanALLO4, condmeanALLO5, condmeanALLO6))
+
+
+modlist=list(mod_noshape_CH, mod_noshape_CO, mod_noshape_sym, mod_noshape_allo)
+traits<-seq(1, 6, 1)
+temp=NULL
+temp2=NULL
+templist=list()
+for(t in traits){
+  condcilow=matrix(data=0, nrow=6, ncol=4)
+  condcihigh=matrix(data=0, nrow=6, ncol=4)
+  for(k in 1:length(modlist)){
+    for(i in c(1:6)[-t]){
+      for(j in 1:1000){
+        temp = matrix(modlist[[k]]$VCV[j,], nrow=6)/10000
+        temp2[j] = evolvabilityBeta(temp[c(t,i),c(t,i)], c(0,1))$a
+        templist[[i]]=temp2
+      }
+      condcilow[i, k]=quantile(templist[[i]], c(0.025, 0.975))[1]
+      condcihigh[i, k]=quantile(templist[[i]], c(0.025, 0.975))[2]
+    }
+  }
+  assign(paste0("condcilow", t), condcilow)
+  assign(paste0("condcihigh", t), condcihigh)
+  
+  assign(paste0("condcilowCH", t), mean(condcilow[-t,1]))
+  assign(paste0("condcilowCO", t), mean(condcilow[-t,2]))
+  assign(paste0("condcilowSYM", t), mean(condcilow[-t,3]))
+  assign(paste0("condcilowALLO", t), mean(condcilow[-t,4]))
+  assign(paste0("condcihighCH", t), mean(condcihigh[-t,1]))
+  assign(paste0("condcihighCO", t), mean(condcihigh[-t,2]))
+  assign(paste0("condcihighSYM", t), mean(condcihigh[-t,3]))
+  assign(paste0("condcihighALLO", t), mean(condcihigh[-t,4]))
+}
+condcilowCH<-as.vector(c(condcilowCH1, condcilowCH2, condcilowCH3, condcilowCH4, condcilowCH5, condcilowCH6))
+condcilowCO<-as.vector(c(condcilowCO1, condcilowCO2, condcilowCO3, condcilowCO4, condcilowCO5, condcilowCO6))
+condcilowSYM<-as.vector(c(condcilowSYM1, condcilowSYM2, condcilowSYM3, condcilowSYM4, condcilowSYM5, condcilowSYM6))
+condcilowALLO<-as.vector(c(condcilowALLO1, condcilowALLO2, condcilowALLO3, condcilowALLO4, condcilowALLO5, condcilowALLO6))
+
+condcihighCH<-as.vector(c(condcihighCH1, condcihighCH2, condcihighCH3, condcihighCH4, condcihighCH5, condcihighCH6))
+condcihighCO<-as.vector(c(condcihighCO1, condcihighCO2, condcihighCO3, condcihighCO4, condcihighCO5, condcihighCO6))
+condcihighSYM<-as.vector(c(condcihighSYM1, condcihighSYM2, condcihighSYM3, condcihighSYM4, condcihighSYM5, condcihighSYM6))
+condcihighALLO<-as.vector(c(condcihighALLO1, condcihighALLO2, condcihighALLO3, condcihighALLO4, condcihighALLO5, condcihighALLO6))
+
+
+
+CHcondmeans<-matrix(c(mean(condon1[-1,1]), mean(condon3[-3,1]), mean(condon4[-4,1]), mean(condon5[-5,1]), mean(condon6[-6,1])))
+CHcilow<-matrix(c(mean(condcilow1[-1,1]), mean(condcilow3[-3,1]), mean(condcilow4[-4,1]), mean(condcilow5[-5,1]), mean(condcilow6[-6,1])))
+CHcihigh<-matrix(c(mean(condcihigh1[-1,1]), mean(condcihigh3[-3,1]), mean(condcihigh4[-4,1]), mean(condcihigh5[-5,1]), mean(condcihigh6[-6,1])))
+COcondmeans<-matrix(c(mean(condon1[-1,2]), mean(condon3[-3,2]), mean(condon4[-4,2]), mean(condon5[-5,2]), mean(condon6[-6,2])))
+COcilow<-matrix(c(mean(condcilow1[-1,2]), mean(condcilow3[-3,2]), mean(condcilow4[-4,2]), mean(condcilow5[-5,2]), mean(condcilow6[-6,2])))
+COcihigh<-matrix(c(mean(condcihigh1[-1,2]), mean(condcihigh3[-3,2]), mean(condcihigh4[-4,2]), mean(condcihigh5[-5,2]), mean(condcihigh6[-6,2])))
+symcondmeans<-matrix(c(mean(condon1[-1,3]), mean(condon3[-3,3]), mean(condon4[-4,3]), mean(condon5[-5,3]), mean(condon6[-6,3])))
+symcilow<-matrix(c(mean(condcilow1[-1,3]), mean(condcilow3[-3,3]), mean(condcilow4[-4,3]), mean(condcilow5[-5,3]), mean(condcilow6[-6,3])))
+symcihigh<-matrix(c(mean(condcihigh1[-1,3]), mean(condcihigh3[-3,3]), mean(condcihigh4[-4,3]), mean(condcihigh5[-5,3]), mean(condcihigh6[-6,3])))
+allocondmeans<-matrix(c(mean(condon1[-1,4]), mean(condon3[-3,4]), mean(condon4[-4,4]), mean(condon5[-5,4]), mean(condon6[-6,4])))
+allocilow<-matrix(c(mean(condcilow1[-1,4]), mean(condcilow3[-3,4]), mean(condcilow4[-4,4]), mean(condcilow5[-5,4]), mean(condcilow6[-6,4])))
+allocihigh<-matrix(c(mean(condcihigh1[-1,4]), mean(condcihigh3[-3,4]), mean(condcihigh4[-4,4]), mean(condcihigh5[-5,4]), mean(condcihigh6[-6,4])))
+
+condmeans<-data.frame(pop=rep(c('Ancestral', 'Derived', 'Sympatry', 'Allopatry'), each=2),
+                      poptype=rep(c("Host", "Coexistence"), each=4),
+                      trait=rep(c('Any', 'Ovipositor')),
+                      autonomy=c(mean(CHcondmeans), mean(condon2[-2,1]), mean(COcondmeans), mean(condon2[-2,2]), mean(symcondmeans), mean(condon2[-2,3]), mean(allocondmeans), mean(condon2[-2,3])),
+                      cilow=c(mean(CHcilow), mean(condcilow2[-2,1]), mean(COcilow), mean(condcilow2[-2,2]), mean(symcilow), mean(condcilow2[-2,3]), mean(allocilow), mean(condcilow2[-2,3])),
+                      cihigh=c(mean(CHcihigh), mean(condcihigh2[-2,1]), mean(COcihigh), mean(condcihigh2[-2,2]), mean(symcihigh), mean(condcihigh2[-2,3]), mean(allocihigh), mean(condcihigh2[-2,3])))
+
+condmeans$poptype<-factor(condmeans$poptype, levels = c("Host", "Coexistence"))
+condmeans$pop<-factor(condmeans$pop, levels = c("Ancestral", "Derived", "Allopatry", "Sympatry"))
+
+ggplot(condmeans, aes(x=pop, y=autonomy, fill=pop, pattern=trait)) + 
+  ylab("Autonomy") + 
+  xlab(" ") + 
+  geom_bar_pattern(stat="identity", position = position_dodge(),
+                   color = "black", 
+                   pattern_fill = "black",
+                   pattern_angle = 45,
+                   pattern_density = 0.01,
+                   pattern_spacing = 0.025,
+                   pattern_key_scale_factor = 0.6) +
+  geom_errorbar(aes(ymin=cilow, ymax=cihigh), width=.3, linewidth=1, position=position_dodge(width=0.9)) +
+  scale_pattern_manual(values = c(Ovipositor = "stripe", Any = "none")) +
+  scale_fill_manual(values = c("darkviolet", "darkgreen", "darkgrey", "darkslategrey")) +
+  facet_grid(.~poptype, scales='free', space="free") +
+  scale_y_continuous(breaks=c(0.2, 0.4, 0.6, 0.8, 1)) +
+  theme(#legend.position = "none", 
+    legend.title=element_blank(), strip.text.x = element_text(size = 13),strip.background=element_rect(fill="white"),
+    axis.title.y=element_text(size = 13), axis.text.x=element_text(size = 13), axis.text.x.top = element_text(size = 13), 
+    panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+    legend.text=element_text(size=10),
+    legend.spacing.y = unit(0.1, 'mm')) +
+  guides(pattern = guide_legend(override.aes = list(fill = "white")),
+         fill = guide_legend(override.aes = list(pattern = "none"))) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) 
+
+
+condtraits<-data.frame(pop=rep(c('Ancestral', 'Derived', 'Sympatry', 'Allopatry'), each=6),
+                       poptype=rep(c("Host", "Coexistence"), each=12),
+                       trait=rep(c('Body length', 'Ovipositor', 'Wing length', 'Wing width', 'Wing area', 'Melanized area')),
+                       autonomy=c(condmeanCH, condmeanCO, condmeanSYM, condmeanALLO),
+                       cilow=c(condcilowCH, condcilowCO, condcilowSYM, condcilowALLO),
+                       cihigh=c(condcihighCH, condcihighCO, condcihighSYM, condcihighALLO))
+condtraits$poptype<-factor(condtraits$poptype, levels = c("Host", "Coexistence"))
+condtraits$pop<-factor(condtraits$pop, levels = c("Ancestral", "Derived", "Allopatry", "Sympatry"))
+condtraits$trait<-factor(condtraits$trait, levels = c("Body length", "Ovipositor", "Wing length", "Wing width", "Wing area", "Melanized area"))
+
+ggplot(condtraits, aes(x=trait, y=autonomy, col=pop)) + 
+  ylab("Autonomy") + 
+  xlab(" ") + 
+  geom_point(stat="identity", size=3, position = position_dodge(width=0.9)) +
+  geom_errorbar(aes(ymin=cilow, ymax=cihigh), width=.3, linewidth=1, position=position_dodge(width=0.9)) +
+  scale_color_manual(values = c("darkviolet", "darkgreen", "darkgrey", "darkslategrey")) +
+  facet_grid(.~poptype, scales='free', space="free") +
+  scale_y_continuous(breaks=c(0.2, 0.4, 0.6, 0.8, 1)) +
+  theme(#legend.position = "none", 
+    legend.title=element_blank(), strip.text.x = element_text(size = 13),
+    axis.title.y=element_text(size = 13), axis.text.x=element_text(size = 13, angle=90), axis.text.x.top = element_text(size = 13), 
+    panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+    legend.text=element_text(size=10),
+    legend.spacing.y = unit(0.1, 'mm')) +
+  guides(pattern = guide_legend(override.aes = list(fill = "white")),
+         fill = guide_legend(override.aes = list(pattern = "none"))) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+
+#MALES----
+
+
+
+
+efly_male<-subset(efly, Sex=='Male')
+efly_male_noshape<-efly_male[,-(13:18)]
+dim(efly_male_noshape)
+
+#Subsetting####
+efly_male_noshape_CH<-subset(efly_male_noshape, Hostplant=="Heterophyllum")
+efly_male_noshape_CO<-subset(efly_male_noshape, Hostplant=="Oleraceum")
+
+efly_male_noshape_sym<-subset(efly_male_noshape, Patry=="Sympatry")
+efly_male_noshape_allo<-subset(efly_male_noshape, Patry=="Allopatry")
+
+efly_male_noshape_east<-subset(efly_male_noshape, Baltic=="East")
+efly_male_noshape_west<-subset(efly_male_noshape, Baltic=="West")
+
+efly_male_noshape_CHES<-subset(efly_male_noshape, Zone=="CHES")
+efly_male_noshape_CHFI<-subset(efly_male_noshape, Zone=="CHFI")
+efly_male_noshape_CHST<-subset(efly_male_noshape, Zone=="CHST")
+efly_male_noshape_CHSK<-subset(efly_male_noshape, Zone=="CHSK")
+
+efly_male_noshape_COES<-subset(efly_male_noshape, Zone=="COES")
+efly_male_noshape_COLI<-subset(efly_male_noshape, Zone=="COLI")
+efly_male_noshape_COGE<-subset(efly_male_noshape, Zone=="COGE")
+efly_male_noshape_COSK<-subset(efly_male_noshape, Zone=="COSK")
+
+#Matrices####
+
+MM_noshape<-cbind(efly_male_noshape$BL.ln, efly_male_noshape$WL.ln, efly_male_noshape$WW.ln, efly_male_noshape$WA.sqrt.ln, efly_male_noshape$MA.sqrt.ln)
+MCV_noshape<-cov(MM_noshape)
+
+MM_noshape_CH<-cbind(efly_male_noshape_CH$BL.ln, efly_male_noshape_CH$WL.ln, efly_male_noshape_CH$WW.ln, efly_male_noshape_CH$WA.sqrt.ln, efly_male_noshape_CH$MA.sqrt.ln)
+MCV_noshape_CH<-cov(MM_noshape_CH)
+
+MM_noshape_CO<-cbind(efly_male_noshape_CO$BL.ln, efly_male_noshape_CO$WL.ln, efly_male_noshape_CO$WW.ln, efly_male_noshape_CO$WA.sqrt.ln, efly_male_noshape_CO$MA.sqrt.ln)
+MCV_noshape_CO<-cov(MM_noshape_CO)
+
+MM_noshape_sym<-cbind(efly_male_noshape_sym$BL.ln, efly_male_noshape_sym$WL.ln, efly_male_noshape_sym$WW.ln, efly_male_noshape_sym$WA.sqrt.ln, efly_male_noshape_sym$MA.sqrt.ln)
+MCV_noshape_sym<-cov(MM_noshape_sym)
+
+MM_noshape_allo<-cbind(efly_male_noshape_allo$BL.ln,efly_male_noshape_allo$WL.ln, efly_male_noshape_allo$WW.ln, efly_male_noshape_allo$WA.sqrt.ln, efly_male_noshape_allo$MA.sqrt.ln)
+MCV_noshape_allo<-cov(MM_noshape_allo)
+
+MM_noshape_east<-cbind(efly_male_noshape_east$BL.ln, efly_male_noshape_east$WL.ln, efly_male_noshape_east$WW.ln, efly_male_noshape_east$WA.sqrt.ln, efly_male_noshape_east$MA.sqrt.ln)
+MCV_noshape_east<-cov(MM_noshape_east)
+
+MM_noshape_west<-cbind(efly_male_noshape_west$BL.ln, efly_male_noshape_west$WL.ln, efly_male_noshape_west$WW.ln, efly_male_noshape_west$WA.sqrt.ln, efly_male_noshape_west$MA.sqrt.ln)
+MCV_noshape_west<-cov(MM_noshape_west)
+
+efly_male_noshape_CHe<-subset(efly_male_noshape, Baltic=="East")
+efly_male_noshape_CHe<-subset(efly_male_noshape_CHe, Hostplant=="Heterophyllum")
+efly_male_noshape_CHw<-subset(efly_male_noshape, Baltic=="West")
+efly_male_noshape_CHw<-subset(efly_male_noshape_CHw, Hostplant=="Heterophyllum")
+efly_male_noshape_COe<-subset(efly_male_noshape, Baltic=="East")
+efly_male_noshape_COe<-subset(efly_male_noshape_COe, Hostplant=="Oleraceum")
+efly_male_noshape_COw<-subset(efly_male_noshape, Baltic=="West")
+efly_male_noshape_COw<-subset(efly_male_noshape_COw, Hostplant=="Oleraceum")
+
+efly_male_noshape_CHallo<-subset(efly_male_noshape, Patry=="Allopatry")
+efly_male_noshape_CHallo<-subset(efly_male_noshape_CHallo, Hostplant=="Heterophyllum")
+efly_male_noshape_CHsym<-subset(efly_male_noshape, Patry=="Sympatry")
+efly_male_noshape_CHsym<-subset(efly_male_noshape_CHsym, Hostplant=="Heterophyllum")
+efly_male_noshape_COallo<-subset(efly_male_noshape, Patry=="Allopatry")
+efly_male_noshape_COallo<-subset(efly_male_noshape_COallo, Hostplant=="Oleraceum")
+efly_male_noshape_COsym<-subset(efly_male_noshape, Patry=="Sympatry")
+efly_male_noshape_COsym<-subset(efly_male_noshape_COsym, Hostplant=="Oleraceum")
+
+MM_noshape_CHe<-cbind(efly_male_noshape_CHe$BL.ln, efly_male_noshape_CHe$WL.ln, efly_male_noshape_CHe$WW.ln, efly_male_noshape_CHe$WA.sqrt.ln, efly_male_noshape_CHe$MA.sqrt.ln)
+MCV_noshape_CHe<-cov(MM_noshape_CHe)
+
+MM_noshape_CHw<-cbind(efly_male_noshape_CHw$BL.ln, efly_male_noshape_CHw$WL.ln, efly_male_noshape_CHw$WW.ln, efly_male_noshape_CHw$WA.sqrt.ln, efly_male_noshape_CHw$MA.sqrt.ln)
+MCV_noshape_CHw<-cov(MM_noshape_CHw)
+
+MM_noshape_COe<-cbind(efly_male_noshape_COe$BL.ln, efly_male_noshape_COe$WL.ln, efly_male_noshape_COe$WW.ln, efly_male_noshape_COe$WA.sqrt.ln, efly_male_noshape_COe$MA.sqrt.ln)
+MCV_noshape_COe<-cov(MM_noshape_COe)
+
+MM_noshape_COw<-cbind(efly_male_noshape_COw$BL.ln, efly_male_noshape_COw$WL.ln, efly_male_noshape_COw$WW.ln, efly_male_noshape_COw$WA.sqrt.ln, efly_male_noshape_COw$MA.sqrt.ln)
+MCV_noshape_COw<-cov(MM_noshape_COw)
+
+MM_noshape_CHallo<-cbind(efly_male_noshape_CHallo$BL.ln, efly_male_noshape_CHallo$WL.ln, efly_male_noshape_CHallo$WW.ln, efly_male_noshape_CHallo$WA.sqrt.ln, efly_male_noshape_CHallo$MA.sqrt.ln)
+MCV_noshape_CHallo<-cov(MM_noshape_CHallo)
+
+MM_noshape_CHsym<-cbind(efly_male_noshape_CHsym$BL.ln, efly_male_noshape_CHsym$WL.ln, efly_male_noshape_CHsym$WW.ln, efly_male_noshape_CHsym$WA.sqrt.ln, efly_male_noshape_CHsym$MA.sqrt.ln)
+MCV_noshape_CHsym<-cov(MM_noshape_CHsym)
+
+MM_noshape_COallo<-cbind(efly_male_noshape_COallo$BL.ln, efly_male_noshape_COallo$WL.ln, efly_male_noshape_COallo$WW.ln, efly_male_noshape_COallo$WA.sqrt.ln, efly_male_noshape_COallo$MA.sqrt.ln)
+MCV_noshape_COallo<-cov(MM_noshape_COallo)
+
+MM_noshape_COsym<-cbind(efly_male_noshape_COsym$BL.ln, efly_male_noshape_COsym$WL.ln, efly_male_noshape_COsym$WW.ln, efly_male_noshape_COsym$WA.sqrt.ln, efly_male_noshape_COsym$MA.sqrt.ln)
+MCV_noshape_COsym<-cov(MM_noshape_COsym)
+
+MM_noshape_noshape_CHES<-cbind(efly_male_noshape_CHES$BL.ln, efly_male_noshape_CHES$WL.ln, efly_male_noshape_CHES$WW.ln, efly_male_noshape_CHES$WA.sqrt.ln, efly_male_noshape_CHES$MA.sqrt.ln)
+MCV_noshape_CHES<-cov(MM_noshape_CHES)
+
+MM_noshape_CHFI<-cbind(efly_male_noshape_CHFI$BL.ln, efly_male_noshape_CHFI$WL.ln, efly_male_noshape_CHFI$WW.ln, efly_male_noshape_CHFI$WA.sqrt.ln, efly_male_noshape_CHFI$MA.sqrt.ln)
+MCV_noshape_CHFI<-cov(MM_noshape_CHFI)
+
+MM_noshape_CHST<-cbind(efly_male_noshape_CHST$BL.ln, efly_male_noshape_CHST$WL.ln, efly_male_noshape_CHST$WW.ln, efly_male_noshape_CHST$WA.sqrt.ln, efly_male_noshape_CHST$MA.sqrt.ln)
+MCV_noshape_CHST<-cov(MM_noshape_CHST)
+
+MM_noshape_CHSK<-cbind(efly_male_noshape_CHSK$BL.ln, efly_male_noshape_CHSK$WL.ln, efly_male_noshape_CHSK$WW.ln, efly_male_noshape_CHSK$WA.sqrt.ln, efly_male_noshape_CHSK$MA.sqrt.ln)
+MCV_noshape_CHSK<-cov(MM_noshape_CHSK)
+
+MM_noshape_COES<-cbind(efly_male_noshape_COES$BL.ln, efly_male_noshape_COES$WL.ln, efly_male_noshape_COES$WW.ln, efly_male_noshape_COES$WA.sqrt.ln, efly_male_noshape_COES$MA.sqrt.ln)
+MCV_noshape_COES<-cov(MM_noshape_COES)
+
+MM_noshape_COLI<-cbind(efly_male_noshape_COLI$BL.ln, efly_male_noshape_COLI$WL.ln, efly_male_noshape_COLI$WW.ln, efly_male_noshape_COLI$WA.sqrt.ln, efly_male_noshape_COLI$MA.sqrt.ln)
+MCV_noshape_COLI<-cov(MM_noshape_COLI)
+
+MM_noshape_COGE<-cbind(efly_male_noshape_COGE$BL.ln, efly_male_noshape_COGE$WL.ln, efly_male_noshape_COGE$WW.ln, efly_male_noshape_COGE$WA.sqrt.ln, efly_male_noshape_COGE$MA.sqrt.ln)
+MCV_noshape_COGE<-cov(MM_noshape_COGE)
+
+MM_noshape_COSK<-cbind(efly_male_noshape_COSK$BL.ln, efly_male_noshape_COSK$WL.ln, efly_male_noshape_COSK$WW.ln, efly_male_noshape_COSK$WA.sqrt.ln, efly_male_noshape_COSK$MA.sqrt.ln)
+MCV_noshape_COSK<-cov(MM_noshape_COSK)
+
+#D-matrix
+
+MEigenVectors_noshape<-eigen(MCV_noshape)$vectors
+
+
+MD_df_BL<-tapply(efly_male$BL.ln, efly_male$Zone, mean)
+MD_df_WL<-tapply(efly_male$WL.ln, efly_male$Zone, mean)
+MD_df_WW<-tapply(efly_male$WW.ln, efly_male$Zone, mean)
+MD_df_WA<-tapply(efly_male$WA.sqrt.ln, efly_male$Zone, mean)
+MD_df_MA<-tapply(efly_male$MA.sqrt.ln, efly_male$Zone, mean)
+MD_df_noshape<-data.frame(MD_df_BL,MD_df_WL,MD_df_WW,MD_df_WA,MD_df_MA)
+
+MDmatrix_noshape<-var(MD_df_noshape)
+
+MRotated_D_noshape<-t(MEigenVectors_noshape) %*% MDmatrix_noshape %*% MEigenVectors_noshape
+
+MRotated_P_noshape<-t(MEigenVectors_noshape) %*% MCV_noshape %*% MEigenVectors_noshape
+
+plot(log(diag(MRotated_D_noshape)) ~ log(diag(MRotated_P_noshape)),pch=1, xlab="P-matrix", ylab="D-matrix")
+summary(lm(log(diag(MRotated_D_noshape)) ~ log(diag(MRotated_P_noshape))))
+
+
+#MCMCs
+
+Mmcmcdata_noshape<-as.data.frame(cbind(efly_male_noshape$BL.ln, efly_male_noshape$WL.ln, efly_male_noshape$WW.ln, efly_male_noshape$WA.sqrt.ln, efly_male_noshape$MA.sqrt.ln)*1000)
+Mmcmcdata_noshape$Zone<-efly_male_noshape$Zone
+colnames(Mmcmcdata_noshape)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+
+
+###All noshape ----
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+Mmod_noshape<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait:Zone,
+               #random= ~us(trait):Zone,
+               rcov= ~us(trait):units,
+               data=Mmcmcdata_noshape,
+               family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=500)
+
+dim((Mmod_noshape$VCV))
+Mpmat_noshape = matrix(apply(Mmod_noshape$VCV, 2, median)[1:25], nrow=n)/1000000
+Mpmat_noshape=Mpmat_noshape*100
+plot(Mpmat_noshape~cov(cbind(efly_male_noshape$BL.ln, efly_male_noshape$WL.ln, efly_male_noshape$WW.ln, efly_male_noshape$WA.sqrt.ln, efly_male_noshape$MA.sqrt.ln)))
+
+ciM = evolvabilityMeansMCMC(Mmod_noshape$VCV[,1:25]/10000)
+ciM$post.medians*100
+
+testMpmat<-Mpmat[-2,-2]*100
+testcmat<-Mpmat*100
+testcmatcondG=conditionalG(testcmat, condition_on=2)
+tested<-evolvabilityMeans(testcmatcondG)[1]/evolvabilityMeans(testMpmat)[1]
+dim(testcmatcondG)
+dim(testMpmat)
+
+conditionalG(testcmat, condition_on=2)
+
+diff=NULL
+auto=NULL
+for(i in 1:1000){
+  testMpmat = matrix(Mmod$VCV[i,][1:144], nrow=11)/1000000
+  testcmatcondG=conditionalG(testMpmat, condition_on=2)
+  fullMpmat=testMpmat[-2,-2]
+  em = evolvabilityMeans(fullMpmat)[1]
+  emc = evolvabilityMeans(testcmatcondG)[1]
+  diff[i] = em-emc
+  auto[i]=100*emc/em
+}
+mean(auto)
+quantile(auto, c(0.025, 0.975))
+hist(auto)
+
+#how independent is a random trait from ovipositor
+
+mean(diff)
+quantile(diff, c(0.025, 0.975))
+hist(diff*1000)
+sum(diff>0)/length(diff)
+
+#CH noshape
+Mmcmcdata_noshape_CH<-as.data.frame(cbind(efly_male_noshape_CH$BL.ln, efly_male_noshape_CH$WL.ln, efly_male_noshape_CH$WW.ln, efly_male_noshape_CH$WA.sqrt.ln, efly_male_noshape_CH$MA.sqrt.ln)*1000)
+Mmcmcdata_noshape_CH$Zone<-efly_male_noshape_CH$Zone
+colnames(Mmcmcdata_noshape_CH)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(Mmcmcdata_noshape_CH)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+Mmod_noshape_CH<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait:Zone,
+                           rcov= ~us(trait):units,
+                           data=Mmcmcdata_noshape_CH,
+                           family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=500)
+
+dim(Mmod_noshape_CH$VCV)
+Mpmat_noshape_CH = matrix(apply(Mmod_noshape_CH$VCV, 2, median)[1:25], nrow=n)/1000000
+Mpmat_noshape_CH=Mpmat_noshape_CH*100
+plot(Mpmat_noshape_CH~cov(cbind(efly_male_noshape_CH$BL.ln, efly_male_noshape_CH$WL.ln, efly_male_noshape_CH$WW.ln, efly_male_noshape_CH$WA.sqrt.ln, efly_male_noshape_CH$MA.sqrt.ln)))
+
+ciM_noshape_CH = evolvabilityMeansMCMC(Mmod_noshape_CH$VCV[,1:25]/10000)
+ciM_noshape_CH$post.medians*100
+
+#CO noshape
+Mmcmcdata_noshape_CO<-as.data.frame(cbind(efly_male_noshape_CO$BL.ln, efly_male_noshape_CO$WL.ln, efly_male_noshape_CO$WW.ln, efly_male_noshape_CO$WA.sqrt.ln, efly_male_noshape_CO$MA.sqrt.ln)*1000)
+Mmcmcdata_noshape_CO$Zone<-efly_male_noshape_CO$Zone
+colnames(Mmcmcdata_noshape_CO)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(Mmcmcdata_noshape_CO)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+Mmod_noshape_CO<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait:Zone,
+                          rcov= ~us(trait):units,
+                          data=Mmcmcdata_noshape_CO,
+                          family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=500)
+
+dim(Mmod_noshape_CO$VCV)
+Mpmat_noshape_CO = matrix(apply(Mmod_noshape_CO$VCV, 2, median)[1:25], nrow=n)/1000000
+Mpmat_noshape_CO=Mpmat_noshape_CO*100
+plot(Mpmat_noshape_CO~cov(cbind(efly_male_noshape_CO$BL.ln, efly_male_noshape_CO$WL.ln, efly_male_noshape_CO$WW.ln, efly_male_noshape_CO$WA.sqrt.ln, efly_male_noshape_CO$MA.sqrt.ln)))
+
+ciM_noshape_CO = evolvabilityMeansMCMC(Mmod_noshape_CO$VCV[,1:25]/10000)
+ciM_noshape_CO$post.medians*100
+
+#sym noshape
+Mmcmcdata_noshape_sym<-as.data.frame(cbind(efly_male_noshape_sym$BL.ln, efly_male_noshape_sym$WL.ln, efly_male_noshape_sym$WW.ln, efly_male_noshape_sym$WA.sqrt.ln, efly_male_noshape_sym$MA.sqrt.ln)*1000)
+Mmcmcdata_noshape_sym$Zone<-efly_male_noshape_sym$Zone
+colnames(Mmcmcdata_noshape_sym)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(Mmcmcdata_noshape_sym)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+Mmod_noshape_sym<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait:Zone,
+                           rcov= ~us(trait):units,
+                           data=Mmcmcdata_noshape_sym,
+                           family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=500)
+
+dim(Mmod_noshape_sym$VCV)
+Mpmat_noshape_sym = matrix(apply(Mmod_noshape_sym$VCV, 2, median)[1:25], nrow=n)/1000000
+Mpmat_noshape_sym=Mpmat_noshape_sym*100
+plot(Mpmat_noshape_sym~cov(cbind(efly_male_noshape_sym$BL.ln, efly_male_noshape_sym$WL.ln, efly_male_noshape_sym$WW.ln, efly_male_noshape_sym$WA.sqrt.ln, efly_male_noshape_sym$MA.sqrt.ln)))
+
+ciM_noshape_sym = evolvabilityMeansMCMC(Mmod_noshape_sym$VCV[,1:25]/10000)
+ciM_noshape_sym$post.medians*100
+
+dmat_noshape_sym = matrix(apply(Mmod_noshape_sym$VCV, 2, median)[1:25], nrow=n)/1000000
+plot(Dmatrix_noshape, dmat_noshape_sym)
+lines(-10:10, -10:10)
+
+#allo noshape
+Mmcmcdata_noshape_allo<-as.data.frame(cbind(efly_male_noshape_allo$BL.ln, efly_male_noshape_allo$WL.ln, efly_male_noshape_allo$WW.ln, efly_male_noshape_allo$WA.sqrt.ln, efly_male_noshape_allo$MA.sqrt.ln)*1000)
+Mmcmcdata_noshape_allo$Zone<-efly_male_noshape_allo$Zone
+colnames(Mmcmcdata_noshape_allo)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(Mmcmcdata_noshape_allo)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+Mmod_noshape_allo<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait:Zone,
+                            rcov= ~us(trait):units,
+                            data=Mmcmcdata_noshape_allo,
+                            family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=500)
+
+dim(Mmod_noshape_allo$VCV)
+Mpmat_noshape_allo = matrix(apply(Mmod_noshape_allo$VCV, 2, median)[1:25], nrow=n)/1000000
+Mpmat_noshape_allo=Mpmat_noshape_allo*100
+plot(Mpmat_noshape_allo~cov(cbind(efly_male_noshape_allo$BL.ln, efly_male_noshape_allo$WL.ln, efly_male_noshape_allo$WW.ln, efly_male_noshape_allo$WA.sqrt.ln, efly_male_noshape_allo$MA.sqrt.ln)))
+
+ciM_noshape_allo = evolvabilityMeansMCMC(Mmod_noshape_allo$VCV[,1:25]/10000)
+ciM_noshape_allo$post.medians*100
+
+#CHES noshape
+Mmcmcdata_noshape_CHES<-as.data.frame(cbind(efly_male_noshape_CHES$BL.ln, efly_male_noshape_CHES$WL.ln, efly_male_noshape_CHES$WW.ln, efly_male_noshape_CHES$WA.sqrt.ln, efly_male_noshape_CHES$MA.sqrt.ln)*1000)
+Mmcmcdata_noshape_CHES$Zone<-efly_male_noshape_CHES$Zone
+colnames(Mmcmcdata_noshape_CHES)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(Mmcmcdata_noshape_CHES)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+Mmod_noshape_CHES<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                            rcov= ~us(trait):units,
+                            data=Mmcmcdata_noshape_CHES,
+                            family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(Mmod_noshape_CHES$VCV)
+Mpmat_noshape_CHES = matrix(apply(Mmod_noshape_CHES$VCV, 2, median)[1:25], nrow=n)/1000000
+Mpmat_noshape_CHES=Mpmat_noshape_CHES*100
+plot(Mpmat_noshape_CHES~cov(cbind(efly_male_noshape_CHES$BL.ln, efly_male_noshape_CHES$WL.ln, efly_male_noshape_CHES$WW.ln, efly_male_noshape_CHES$WA.sqrt.ln, efly_male_noshape_CHES$MA.sqrt.ln)))
+
+ciM_noshape_CHES = evolvabilityMeansMCMC(Mmod_noshape_CHES$VCV[,1:25]/10000)
+ciM_noshape_CHES$post.medians*100
+
+#CHFI noshape
+Mmcmcdata_noshape_CHFI<-as.data.frame(cbind(efly_male_noshape_CHFI$BL.ln, efly_male_noshape_CHFI$WL.ln, efly_male_noshape_CHFI$WW.ln, efly_male_noshape_CHFI$WA.sqrt.ln, efly_male_noshape_CHFI$MA.sqrt.ln)*1000)
+Mmcmcdata_noshape_CHFI$Zone<-efly_male_noshape_CHFI$Zone
+colnames(Mmcmcdata_noshape_CHFI)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(Mmcmcdata_noshape_CHFI)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+Mmod_noshape_CHFI<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                            rcov= ~us(trait):units,
+                            data=Mmcmcdata_noshape_CHFI,
+                            family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(Mmod_noshape_CHFI$VCV)
+Mpmat_noshape_CHFI = matrix(apply(Mmod_noshape_CHFI$VCV, 2, median)[1:25], nrow=n)/1000000
+Mpmat_noshape_CHFI=Mpmat_noshape_CHFI*100
+plot(Mpmat_noshape_CHFI~cov(cbind(efly_male_noshape_CHFI$BL.ln, efly_male_noshape_CHFI$WL.ln, efly_male_noshape_CHFI$WW.ln, efly_male_noshape_CHFI$WA.sqrt.ln, efly_male_noshape_CHFI$MA.sqrt.ln)))
+
+ciM_noshape_CHFI = evolvabilityMeansMCMC(Mmod_noshape_CHFI$VCV[,1:25]/10000)
+ciM_noshape_CHFI$post.medians*100
+
+#CHSK noshape
+Mmcmcdata_noshape_CHSK<-as.data.frame(cbind(efly_male_noshape_CHSK$BL.ln, efly_male_noshape_CHSK$WL.ln, efly_male_noshape_CHSK$WW.ln, efly_male_noshape_CHSK$WA.sqrt.ln, efly_male_noshape_CHSK$MA.sqrt.ln)*1000)
+Mmcmcdata_noshape_CHSK$Zone<-efly_male_noshape_CHSK$Zone
+colnames(Mmcmcdata_noshape_CHSK)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(Mmcmcdata_noshape_CHSK)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+Mmod_noshape_CHSK<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                            rcov= ~us(trait):units,
+                            data=Mmcmcdata_noshape_CHSK,
+                            family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(Mmod_noshape_CHSK$VCV)
+Mpmat_noshape_CHSK = matrix(apply(Mmod_noshape_CHSK$VCV, 2, median)[1:25], nrow=n)/1000000
+Mpmat_noshape_CHSK=Mpmat_noshape_CHSK*100
+plot(Mpmat_noshape_CHSK~cov(cbind(efly_male_noshape_CHSK$BL.ln, efly_male_noshape_CHSK$WL.ln, efly_male_noshape_CHSK$WW.ln, efly_male_noshape_CHSK$WA.sqrt.ln, efly_male_noshape_CHSK$MA.sqrt.ln)))
+
+ciM_noshape_CHSK = evolvabilityMeansMCMC(Mmod_noshape_CHSK$VCV[,1:25]/10000)
+ciM_noshape_CHSK$post.medians*100
+
+#CHST noshape
+Mmcmcdata_noshape_CHST<-as.data.frame(cbind(efly_male_noshape_CHST$BL.ln, efly_male_noshape_CHST$WL.ln, efly_male_noshape_CHST$WW.ln, efly_male_noshape_CHST$WA.sqrt.ln, efly_male_noshape_CHST$MA.sqrt.ln)*1000)
+Mmcmcdata_noshape_CHST$Zone<-efly_male_noshape_CHST$Zone
+colnames(Mmcmcdata_noshape_CHST)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(Mmcmcdata_noshape_CHST)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+Mmod_noshape_CHST<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                            rcov= ~us(trait):units,
+                            data=Mmcmcdata_noshape_CHST,
+                            family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(Mmod_noshape_CHST$VCV)
+Mpmat_noshape_CHST = matrix(apply(Mmod_noshape_CHST$VCV, 2, median)[1:25], nrow=n)/1000000
+Mpmat_noshape_CHST=Mpmat_noshape_CHST*100
+plot(Mpmat_noshape_CHST~cov(cbind(efly_male_noshape_CHST$BL.ln, efly_male_noshape_CHST$WL.ln, efly_male_noshape_CHST$WW.ln, efly_male_noshape_CHST$WA.sqrt.ln, efly_male_noshape_CHST$MA.sqrt.ln)))
+
+ciM_noshape_CHST = evolvabilityMeansMCMC(Mmod_noshape_CHST$VCV[,1:25]/10000)
+ciM_noshape_CHST$post.medians*100
+
+#COES noshape
+Mmcmcdata_noshape_COES<-as.data.frame(cbind(efly_male_noshape_COES$BL.ln, efly_male_noshape_COES$WL.ln, efly_male_noshape_COES$WW.ln, efly_male_noshape_COES$WA.sqrt.ln, efly_male_noshape_COES$MA.sqrt.ln)*1000)
+Mmcmcdata_noshape_COES$Zone<-efly_male_noshape_COES$Zone
+colnames(Mmcmcdata_noshape_COES)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(Mmcmcdata_noshape_COES)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+Mmod_noshape_COES<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                            rcov= ~us(trait):units,
+                            data=Mmcmcdata_noshape_COES,
+                            family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(Mmod_noshape_COES$VCV)
+Mpmat_noshape_COES = matrix(apply(Mmod_noshape_COES$VCV, 2, median)[1:25], nrow=n)/1000000
+Mpmat_noshape_COES=Mpmat_noshape_COES*100
+plot(Mpmat_noshape_COES~cov(cbind(efly_male_noshape_COES$BL.ln, efly_male_noshape_COES$WL.ln, efly_male_noshape_COES$WW.ln, efly_male_noshape_COES$WA.sqrt.ln, efly_male_noshape_COES$MA.sqrt.ln)))
+
+ciM_noshape_COES = evolvabilityMeansMCMC(Mmod_noshape_COES$VCV[,1:25]/10000)
+ciM_noshape_COES$post.medians*100
+
+#COLI noshape
+Mmcmcdata_noshape_COLI<-as.data.frame(cbind(efly_male_noshape_COLI$BL.ln, efly_male_noshape_COLI$WL.ln, efly_male_noshape_COLI$WW.ln, efly_male_noshape_COLI$WA.sqrt.ln, efly_male_noshape_COLI$MA.sqrt.ln)*1000)
+Mmcmcdata_noshape_COLI$Zone<-efly_male_noshape_COLI$Zone
+colnames(Mmcmcdata_noshape_COLI)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(Mmcmcdata_noshape_COLI)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+Mmod_noshape_COLI<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                            rcov= ~us(trait):units,
+                            data=Mmcmcdata_noshape_COLI,
+                            family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(Mmod_noshape_COLI$VCV)
+Mpmat_noshape_COLI = matrix(apply(Mmod_noshape_COLI$VCV, 2, median)[1:25], nrow=n)/1000000
+Mpmat_noshape_COLI=Mpmat_noshape_COLI*100
+plot(Mpmat_noshape_COLI~cov(cbind(efly_male_noshape_COLI$BL.ln, efly_male_noshape_COLI$WL.ln, efly_male_noshape_COLI$WW.ln, efly_male_noshape_COLI$WA.sqrt.ln, efly_male_noshape_COLI$MA.sqrt.ln)))
+
+ciM_noshape_COLI = evolvabilityMeansMCMC(Mmod_noshape_COLI$VCV[,1:25]/10000)
+ciM_noshape_COLI$post.medians*100
+
+#COGE noshape
+Mmcmcdata_noshape_COGE<-as.data.frame(cbind(efly_male_noshape_COGE$BL.ln, efly_male_noshape_COGE$WL.ln, efly_male_noshape_COGE$WW.ln, efly_male_noshape_COGE$WA.sqrt.ln, efly_male_noshape_COGE$MA.sqrt.ln)*1000)
+Mmcmcdata_noshape_COGE$Zone<-efly_male_noshape_COGE$Zone
+colnames(Mmcmcdata_noshape_COGE)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(Mmcmcdata_noshape_COGE)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+Mmod_noshape_COGE<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                            rcov= ~us(trait):units,
+                            data=Mmcmcdata_noshape_COGE,
+                            family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(Mmod_noshape_COGE$VCV)
+Mpmat_noshape_COGE = matrix(apply(Mmod_noshape_COGE$VCV, 2, median)[1:25], nrow=n)/1000000
+Mpmat_noshape_COGE=Mpmat_noshape_COGE*100
+plot(Mpmat_noshape_COGE~cov(cbind(efly_male_noshape_COGE$BL.ln, efly_male_noshape_COGE$WL.ln, efly_male_noshape_COGE$WW.ln, efly_male_noshape_COGE$WA.sqrt.ln, efly_male_noshape_COGE$MA.sqrt.ln)))
+
+ciM_noshape_COGE = evolvabilityMeansMCMC(Mmod_noshape_COGE$VCV[,1:25]/10000)
+ciM_noshape_COGE$post.medians*100
+
+#COSK noshape
+Mmcmcdata_noshape_COSK<-as.data.frame(cbind(efly_male_noshape_COSK$BL.ln, efly_male_noshape_COSK$WL.ln, efly_male_noshape_COSK$WW.ln, efly_male_noshape_COSK$WA.sqrt.ln, efly_male_noshape_COSK$MA.sqrt.ln)*1000)
+Mmcmcdata_noshape_COSK$Zone<-efly_male_noshape_COSK$Zone
+colnames(Mmcmcdata_noshape_COSK)<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "Zone")
+dim(Mmcmcdata_noshape_COSK)
+
+n = 5
+alpha.mu = rep(0, n)
+alpha.V = diag(n)*50
+prior = list(R=list(V=diag(n), nu=n+0.002-1)) 
+
+Mmod_noshape_COSK<-MCMCglmm(cbind(BL.ln, WL.ln, WW.ln, WA.sqrt.ln, MA.sqrt.ln) ~ -1+trait,
+                            rcov= ~us(trait):units,
+                            data=Mmcmcdata_noshape_COSK,
+                            family=rep("gaussian", 5), prior=prior, nitt=1000000, burnin=500000, thin=100)
+
+dim(Mmod_noshape_COSK$VCV)
+Mpmat_noshape_COSK = matrix(apply(Mmod_noshape_COSK$VCV, 2, median)[1:25], nrow=n)/1000000
+Mpmat_noshape_COSK=Mpmat_noshape_COSK*100
+plot(Mpmat_noshape_COSK~cov(cbind(efly_male_noshape_COSK$BL.ln, efly_male_noshape_COSK$WL.ln, efly_male_noshape_COSK$WW.ln, efly_male_noshape_COSK$WA.sqrt.ln, efly_male_noshape_COSK$MA.sqrt.ln)))
+
+ciM_noshape_COSK = evolvabilityMeansMCMC(Mmod_noshape_COSK$VCV[,1:25]/10000)
+ciM_noshape_COSK$post.medians*100
+
+#tests of MCMCs
+
+#Females (without ovipositor) vs males----
+
+diff=NULL
+perc=NULL
+percinv=NULL
+for(i in 1:1000){
+  emM = evolvabilityMeans(matrix(Mmod_noshape$VCV[i,][1:25], nrow=5)/1000000)[1] #males
+  em = evolvabilityMeans(matrix(mod_noovi_noshape$VCV[i,][1:25], nrow=5)/1000000)[1] #females
+  diff[i] = em-emM
+  perc[i] = em/emM
+  percinv[i]=emM/em
+}
+mean(diff)
+(1-mean(perc))*100
+(1-mean(percinv))*100
+sum(diff>0)/length(diff)*100
+ci_noovi
+ciM
+
+
+#HP noshape
+diff=NULL
+perc=NULL
+for(i in 1:1000){
+  emMCH = evolvabilityMeans(matrix(Mmod_noshape_CH$VCV[i,][1:25], nrow=5)/1000000)[1]
+  emMCO = evolvabilityMeans(matrix(Mmod_noshape_CO$VCV[i,][1:25], nrow=5)/1000000)[1]
+  diff[i] = emMCH-emMCO
+  perc[i] = emMCO/emMCH
+}
+mean(diff)
+(1-mean(perc))*100
+quantile(diff, c(0.025, 0.975))
+hist(diff*1000)
+1-sum(diff>0)/length(diff)
+sum(diff>0)/length(diff)*100
+
+#patry noshape
+diff=NULL
+perc=NULL
+percinv=NULL
+for(i in 1:1000){
+  emMCH = evolvabilityMeans(matrix(Mmod_noshape_sym$VCV[i,][1:25], nrow=5)/1000000)[1]
+  emMCO = evolvabilityMeans(matrix(Mmod_noshape_allo$VCV[i,][1:25], nrow=5)/1000000)[1]
+  diff[i] = emMCH-emMCO
+  perc[i] = emMCO/emMCH
+  percinv[i] = emMCH/emMCO
+}
+mean(diff)
+(1-mean(perc))*100
+(1-mean(percinv))*100
+quantile(diff, c(0.025, 0.975))
+hist(diff*1000)
+sum(diff>0)/length(diff)
+1-sum(diff>0)/length(diff)*100
+
+#Variance decomposition----
+
+#bl
+modelchblM<-lmer(BL.ln~1+(1|Zone), data=efly_male_noshape_CH)
+summary(modelchblM)
+1.123e-05/(1.123e-05+7.441e-04)
+modelcoblM<-lmer(BL.ln~1+(1|Zone), data=efly_male_noshape_CO)
+summary(modelcoblM)
+0.0005410/(0.0005410+0.0006437)
+
+#wl
+modelchwlM<-lmer(WL.ln~1+(1|Zone), data=efly_male_noshape_CH)
+summary(modelchwlM)
+0.0000924/(0.0000924+0.0006543)
+modelcowlM<-lmer(WL.ln~1+(1|Zone), data=efly_male_noshape_CO)
+summary(modelcowlM)
+9.696e-05/(9.696e-05+6.371e-04)
+
+#ww
+modelchwwM<-lmer(WW.ln~1+(1|Zone), data=efly_male_noshape_CH)
+summary(modelchwwM)
+0.0002082/(0.0002082+0.0007894)
+modelcowwM<-lmer(WW.ln~1+(1|Zone), data=efly_male_noshape_CO)
+summary(modelcowwM)
+0.0002502/(0.0002502+0.0007439)
+
+#wa
+modelchwaM<-lmer(WA.sqrt.ln~1+(1|Zone), data=efly_male_noshape_CH)
+summary(modelchwaM)
+0.0001725/(0.0001725+0.0006626)
+modelcowaM<-lmer(WA.sqrt.ln~1+(1|Zone), data=efly_male_noshape_CO)
+summary(modelcowaM)
+0.0001802/(0.0001802+0.0005968)
+
+#ma
+modelchmaM<-lmer(MA.sqrt.ln~1+(1|Zone), data=efly_male_noshape_CH)
+summary(modelchmaM)
+0.0003084/(0.0003084+0.0012474)
+modelcomaM<-lmer(MA.sqrt.ln~1+(1|Zone), data=efly_male_noshape_CO)
+summary(modelcomaM)
+0.0003879/(0.0003879+0.0010178)
+
+vardecomp.traitM<-c("BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln",
+                   "BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln", "BL.ln", "WL.ln", "WW.ln", "WA.sqrt.ln", "MA.sqrt.ln")
+vardecomp.varM<-c(as.data.frame(VarCorr(modelchblM))[1,4], 
+                 as.data.frame(VarCorr(modelchwlM))[1,4], as.data.frame(VarCorr(modelchwwM))[1,4],
+                 as.data.frame(VarCorr(modelchwaM))[1,4], as.data.frame(VarCorr(modelchmaM))[1,4],
+                 as.data.frame(VarCorr(modelcoblM))[1,4], 
+                 as.data.frame(VarCorr(modelcowlM))[1,4], as.data.frame(VarCorr(modelcowwM))[1,4],
+                 as.data.frame(VarCorr(modelcowaM))[1,4], as.data.frame(VarCorr(modelcomaM))[1,4],
+                 as.data.frame(VarCorr(modelchblM))[2,4],
+                 as.data.frame(VarCorr(modelchwlM))[2,4], as.data.frame(VarCorr(modelchwwM))[2,4],
+                 as.data.frame(VarCorr(modelchwaM))[2,4], as.data.frame(VarCorr(modelchmaM))[2,4],
+                 as.data.frame(VarCorr(modelcoblM))[2,4], 
+                 as.data.frame(VarCorr(modelcowlM))[2,4], as.data.frame(VarCorr(modelcowwM))[2,4],
+                 as.data.frame(VarCorr(modelcowaM))[2,4], as.data.frame(VarCorr(modelcomaM))[2,4])
+
+vardecomp.seM<-c(as.data.frame(VarCorr(modelchblM))[1,5]/sqrt(dim(efly_male_noshape_CH)[1]), 
+                as.data.frame(VarCorr(modelchwlM))[1,5]/sqrt(dim(efly_male_noshape_CH)[1]), as.data.frame(VarCorr(modelchwwM))[1,5]/sqrt(dim(efly_male_noshape_CH)[1]),
+                as.data.frame(VarCorr(modelchwaM))[1,5]/sqrt(dim(efly_male_noshape_CH)[1]), as.data.frame(VarCorr(modelchmaM))[1,5]/sqrt(dim(efly_male_noshape_CH)[1]),
+                as.data.frame(VarCorr(modelcoblM))[1,5]/sqrt(dim(efly_male_noshape_CO)[1]), 
+                as.data.frame(VarCorr(modelcowlM))[1,5]/sqrt(dim(efly_male_noshape_CO)[1]), as.data.frame(VarCorr(modelcowwM))[1,5]/sqrt(dim(efly_male_noshape_CO)[1]),
+                as.data.frame(VarCorr(modelcowaM))[1,5]/sqrt(dim(efly_male_noshape_CO)[1]), as.data.frame(VarCorr(modelcomaM))[1,5]/sqrt(dim(efly_male_noshape_CO)[1]),
+                as.data.frame(VarCorr(modelchblM))[2,5]/sqrt(dim(efly_male_noshape_CH)[1]), 
+                as.data.frame(VarCorr(modelchwlM))[2,5]/sqrt(dim(efly_male_noshape_CH)[1]), as.data.frame(VarCorr(modelchwwM))[2,5]/sqrt(dim(efly_male_noshape_CH)[1]),
+                as.data.frame(VarCorr(modelchwaM))[2,5]/sqrt(dim(efly_male_noshape_CH)[1]), as.data.frame(VarCorr(modelchmaM))[2,5]/sqrt(dim(efly_male_noshape_CH)[1]),
+                as.data.frame(VarCorr(modelcoblM))[2,5]/sqrt(dim(efly_male_noshape_CO)[1]), 
+                as.data.frame(VarCorr(modelcowlM))[2,5]/sqrt(dim(efly_male_noshape_CO)[1]), as.data.frame(VarCorr(modelcowwM))[2,5]/sqrt(dim(efly_male_noshape_CO)[1]),
+                as.data.frame(VarCorr(modelcowaM))[2,5]/sqrt(dim(efly_male_noshape_CO)[1]), as.data.frame(VarCorr(modelcomaM))[2,5]/sqrt(dim(efly_male_noshape_CO)[1]))
+vardecomp.percentM<-c(vardecomp.varM[1]/(vardecomp.varM[1]+vardecomp.varM[11]), vardecomp.varM[2]/(vardecomp.varM[2]+vardecomp.varM[12]),
+                     vardecomp.varM[3]/(vardecomp.varM[3]+vardecomp.varM[13]), vardecomp.varM[4]/(vardecomp.varM[4]+vardecomp.varM[14]),
+                     vardecomp.varM[5]/(vardecomp.varM[5]+vardecomp.varM[15]), vardecomp.varM[6]/(vardecomp.varM[6]+vardecomp.varM[16]),
+                     vardecomp.varM[7]/(vardecomp.varM[7]+vardecomp.varM[17]), vardecomp.varM[8]/(vardecomp.varM[8]+vardecomp.varM[18]),
+                     vardecomp.varM[9]/(vardecomp.varM[9]+vardecomp.varM[19]), vardecomp.varM[10]/(vardecomp.varM[10]+vardecomp.varM[20]),
+                     1-(vardecomp.varM[1]/(vardecomp.varM[1]+vardecomp.varM[11])), 1-(vardecomp.varM[2]/(vardecomp.varM[2]+vardecomp.varM[12])),
+                     1-(vardecomp.varM[3]/(vardecomp.varM[3]+vardecomp.varM[13])), 1-(vardecomp.varM[4]/(vardecomp.varM[4]+vardecomp.varM[14])),
+                     1-(vardecomp.varM[5]/(vardecomp.varM[5]+vardecomp.varM[15])), 1-(vardecomp.varM[6]/(vardecomp.varM[6]+vardecomp.varM[16])),
+                     1-(vardecomp.varM[7]/(vardecomp.varM[7]+vardecomp.varM[17])), 1-(vardecomp.varM[8]/(vardecomp.varM[8]+vardecomp.varM[18])),
+                     1-(vardecomp.varM[9]/(vardecomp.varM[9]+vardecomp.varM[19])), 1-(vardecomp.varM[10]/(vardecomp.varM[10]+vardecomp.varM[20])))
+vardecomp.typeM<-c("Among population", "Among population", "Among population", "Among population", "Among population", "Among population", "Among population", "Among population", "Among population", "Among population", 
+                  "Within population", "Within population", "Within population", "Within population", "Within population", "Within population", "Within population", "Within population", "Within population", "Within population")
+vardecomp.hpM<-c("Ancestral", "Ancestral", "Ancestral", "Ancestral", "Ancestral", "Derived", "Derived", "Derived", "Derived", "Derived", "Ancestral", "Ancestral", "Ancestral", "Ancestral", "Ancestral", "Derived", "Derived", "Derived", "Derived", "Derived")
+vardecomp.numberM<-seq(1,20,1)
+vardecomp.dfM<-data.frame(vardecomp.traitM, vardecomp.hpM, vardecomp.varM, vardecomp.typeM, vardecomp.percentM, vardecomp.seM)
+summary(vardecomp.dfM)
+
+t_within<-subset(vardecomp.dfM, vardecomp.typeM=="Within population")
+t_between<-subset(vardecomp.dfM, vardecomp.typeM=="Among population")
+t.test(t_within$vardecomp.varM, t_between$vardecomp.varM, paired=T)
+
+
+ggplot(vardecomp.dfM, aes(y=vardecomp.percentM, x=vardecomp.hpM, fill=vardecomp.hpM, )) +
+  geom_col(aes(alpha=vardecomp.typeM), position="stack") +
+  scale_fill_manual(values = c("darkviolet","darkgreen")) +
+  scale_alpha_manual(values = c(0.5, 0.8))+
+  ylab("Variance") +
+  xlab(" ") + 
+  facet_grid(.~vardecomp.traitM, labeller = as_labeller(vardecomp.traitM))+ theme(panel.spacing = unit(0.2, "lines")) +
+  theme(axis.text.x = element_blank(), 
+        legend.title=element_blank(), 
+        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+        legend.text=element_text(size=10), axis.title=element_text(size=12,face="bold"),
+        legend.spacing.y = unit(0.1, 'mm'),axis.text=element_text(size=10))  +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+#Dimension reduction----
+
+betas_noshapeM=randomBeta(1000, 5)
+chvals_noshapeM = evolvabilityBeta(Mpmat_noshape_CH, betas_noshapeM)$e
+covals_noshapeM = evolvabilityBeta(Mpmat_noshape_CO, betas_noshapeM)$e
+dimredM<-plot(chvals_noshapeM, covals_noshapeM, xlab="Ancestral flies P-matrix", ylab="Derived flies P-matrix", cex.lab=1.4, cex.axis=1.2)+text(0.41, 0.004, expression(R^2==0.99), cex=1.4)
+summary(lm(chvals_noshapeM~covals_noshapeM))$r.squared
+
+
+
+
+evMCH = eigen(Mpmat_CH)
+evMCO = eigen(Mpmat_CO)
+
+
+cor(evMCH$values, evMCO$values)
+
+betas=randomBeta(1000, 11)
+
+mchvals = evolvabilityBeta(Mpmat_CH, betas)$e
+mcovals = evolvabilityBeta(Mpmat_CO, betas)$e
+plot(mchvals, mcovals, xlab="CH-flies P-matrix", ylab="CO-flies P-matrix", cex.lab=1.4, cex.axis=1.2)+text(0.2, 0.003, expression(R^2==0.99), cex=1.4)
+summary(lm(mchvals~mcovals))
+
+
+evMCH_noshape = eigen(Mpmat_noshape_CH)
+evMCO_noshape = eigen(Mpmat_noshape_CO)
+evMCHES_noshape = eigen(Mpmat_noshape_CHES)
+evMCOES_noshape = eigen(Mpmat_noshape_COES)
+evMCHSK_noshape = eigen(Mpmat_noshape_CHSK)
+evMCOSK_noshape = eigen(Mpmat_noshape_COSK)
+evMCHFI_noshape = eigen(Mpmat_noshape_CHFI)
+evMCOLI_noshape = eigen(Mpmat_noshape_COLI)
+evMCHST_noshape = eigen(Mpmat_noshape_CHST)
+evMCOGE_noshape = eigen(Mpmat_noshape_COGE)
+
+Mt1ch_noshape = c(evMCH_noshape$vectors[,1] %*% t(MM_noshape))
+Mt2ch_noshape = c(evMCH_noshape$vectors[,2] %*% t(MM_noshape))
+Mt1co_noshape = c(evMCO_noshape$vectors[,1] %*% t(MM_noshape))
+Mt2co_noshape = c(evMCO_noshape$vectors[,2] %*% t(MM_noshape))
+Mt1ches_noshape = c(evMCHES_noshape$vectors[,1] %*% t(MM_noshape))
+Mt2ches_noshape = c(evMCHES_noshape$vectors[,2] %*% t(MM_noshape))
+Mt1coes_noshape = c(evMCOES_noshape$vectors[,1] %*% t(MM_noshape))
+Mt2coes_noshape = c(evMCOES_noshape$vectors[,2] %*% t(MM_noshape))
+Mt1chsk_noshape = c(evMCHSK_noshape$vectors[,1] %*% t(MM_noshape))
+Mt2chsk_noshape = c(evMCHSK_noshape$vectors[,2] %*% t(MM_noshape))
+Mt1cosk_noshape = c(evMCOSK_noshape$vectors[,1] %*% t(MM_noshape))
+Mt2cosk_noshape = c(evMCOSK_noshape$vectors[,2] %*% t(MM_noshape))
+Mt1chfi_noshape = c(evMCHFI_noshape$vectors[,1] %*% t(MM_noshape))
+Mt2chfi_noshape = c(evMCHFI_noshape$vectors[,2] %*% t(MM_noshape))
+Mt1coli_noshape = c(evMCOLI_noshape$vectors[,1] %*% t(MM_noshape))
+Mt2coli_noshape = c(evMCOLI_noshape$vectors[,2] %*% t(MM_noshape))
+Mt1chst_noshape = c(evMCHST_noshape$vectors[,1] %*% t(MM_noshape))
+Mt2chst_noshape = c(evMCHST_noshape$vectors[,2] %*% t(MM_noshape))
+Mt1coge_noshape = c(evMCOGE_noshape$vectors[,1] %*% t(MM_noshape))
+Mt2coge_noshape = c(evMCOGE_noshape$vectors[,2] %*% t(MM_noshape))
+
+Mcmch_noshape = cov(cbind(Mt1ch_noshape, Mt2ch_noshape))
+Mcmco_noshape = cov(cbind(Mt1co_noshape, Mt2co_noshape))
+Mcmches_noshape = cov(cbind(Mt1ches_noshape, Mt2ches_noshape))
+Mcmcoes_noshape = cov(cbind(Mt1coes_noshape, Mt2coes_noshape))
+Mcmchsk_noshape = cov(cbind(Mt1chsk_noshape, Mt2chsk_noshape))
+Mcmcosk_noshape = cov(cbind(Mt1cosk_noshape, Mt2cosk_noshape))
+Mcmchfi_noshape = cov(cbind(Mt1chfi_noshape, Mt2chfi_noshape))
+Mcmcoli_noshape = cov(cbind(Mt1coli_noshape, Mt2coli_noshape))
+Mcmchst_noshape = cov(cbind(Mt1chst_noshape, Mt2chst_noshape))
+Mcmcoge_noshape = cov(cbind(Mt1coge_noshape, Mt2coge_noshape))
+
+
+eigen(cov(MM_noshape))$values[1]/sum(eigen(cov(MM_noshape))$values)
+eigen(cov(MM_noshape))$values[2]/sum(eigen(cov(MM_noshape))$values)
+
+
+evM = eigen(Mpmat_noshape)
+t1M = c(evM$vectors[,1] %*% t(MM_noshape))
+t2M = c(evM$vectors[,2] %*% t(MM_noshape))
+t1meansM<-tapply(t1M, efly_male_noshape$Zone, mean)
+t2meansM<-tapply(t2M, efly_male_noshape$Zone, mean)
+
+covmatlistM=list(
+  cov(cbind(t1M[which(efly_male_noshape$Zone=="CHES")],t2M[which(efly_male_noshape$Zone=="CHES")])),#/length(t1[which(efly_fem$Zone=="CHES")]),
+  cov(cbind(t1M[which(efly_male_noshape$Zone=="CHFI")],t2M[which(efly_male_noshape$Zone=="CHFI")])),#/length(t1[which(efly_fem$Zone=="CHFI")]),
+  cov(cbind(t1M[which(efly_male_noshape$Zone=="CHSK")],t2M[which(efly_male_noshape$Zone=="CHSK")])),#/length(t1[which(efly_fem$Zone=="CHSK")]),
+  cov(cbind(t1M[which(efly_male_noshape$Zone=="CHST")],t2M[which(efly_male_noshape$Zone=="CHST")]))#/length(t1[which(efly_fem$Zone=="CHST")])
+)
+
+covmatlistcoM=list(
+  cov(cbind(t1M[which(efly_male_noshape$Zone=="COES")],t2M[which(efly_male_noshape$Zone=="COES")])),
+  cov(cbind(t1M[which(efly_male_noshape$Zone=="COGE")],t2M[which(efly_male_noshape$Zone=="COGE")])),
+  cov(cbind(t1M[which(efly_male_noshape$Zone=="COLI")],t2M[which(efly_male_noshape$Zone=="COLI")])),
+  cov(cbind(t1M[which(efly_male_noshape$Zone=="COSK")],t2M[which(efly_male_noshape$Zone=="COSK")]))
+)
+
+chmeanM = apply(simplify2array(covmatlistM), 1:2, mean)
+comeanM = apply(simplify2array(covmatlistcoM), 1:2, mean)
+chesmeanM=apply((cov(cbind(t1M[which(efly_male_noshape$Zone=="CHES")],t2M[which(efly_male_noshape$Zone=="CHES")]))), 1:2, mean)
+
+1.2-0.8
+0.6-0.2
+plot(seq(-1.2,-0.8, length.out = 2), seq(0.2,0.6, length.out = 2), col="white", xlab="77.1% of variation", ylab="14% of variation", main='Male phenotypic variance-covariance matrices')
+points(t1meansM,t2meansM, pch=0, cex=1.5, col=c("darkviolet", "darkviolet", "darkviolet", "darkviolet", "darkgreen", "darkgreen", "darkgreen","darkgreen"))
+points(tapply(t1M, efly_male_noshape$Hostplant, mean),tapply(t2M, efly_male_noshape$Hostplant, mean),pch=15, cex=2, col=c("darkviolet", "darkgreen"))
+lines(ellipse(chmeanM, centre=c(mean(t1meansM[1:4]), mean(t2meansM[1:4]))), col="darkviolet", lwd=3)
+lines(ellipse(comeanM, centre=c(mean(t1meansM[5:8]), mean(t2meansM[5:8]))), col="darkgreen", lwd=3)
+lines(ellipse(chesmeanM, centre=c(mean(t1meansM[1]), mean(t2meansM[1]))), col=rgb(0.578125,0,0.8242188,0.4), lty=2)
+lines(ellipse(cov(cbind(t1M[which(efly_male_noshape$Zone=="CHFI")],t2M[which(efly_male_noshape$Zone=="CHFI")])), centre = c(mean(t1meansM[2]), mean(t2meansM[2]))), col=rgb(0.578125,0,0.8242188,0.4), lty=2)
+lines(ellipse(cov(cbind(t1M[which(efly_male_noshape$Zone=="CHSK")],t2M[which(efly_male_noshape$Zone=="CHSK")])), centre = c(mean(t1meansM[3]), mean(t2meansM[3]))), col=rgb(0.578125,0,0.8242188,0.4), lty=2)
+lines(ellipse(cov(cbind(t1M[which(efly_male_noshape$Zone=="CHST")],t2M[which(efly_male_noshape$Zone=="CHST")])), centre = c(mean(t1meansM[4]), mean(t2meansM[4]))), col=rgb(0.578125,0,0.8242188,0.4), lty=2)
+lines(ellipse(cov(cbind(t1M[which(efly_male_noshape$Zone=="COES")],t2M[which(efly_male_noshape$Zone=="COES")])), centre = c(mean(t1meansM[5]), mean(t2meansM[5]))), col=rgb(0,0.390625,0,0.4), lty=2)
+lines(ellipse(cov(cbind(t1M[which(efly_male_noshape$Zone=="COGE")],t2M[which(efly_male_noshape$Zone=="COGE")])), centre = c(mean(t1meansM[6]), mean(t2meansM[6]))), col=rgb(0,0.390625,0,0.4), lty=2)
+lines(ellipse(cov(cbind(t1M[which(efly_male_noshape$Zone=="COLI")],t2M[which(efly_male_noshape$Zone=="COLI")])), centre = c(mean(t1meansM[7]), mean(t2meansM[7]))), col=rgb(0,0.390625,0,0.4), lty=2)
+lines(ellipse(cov(cbind(t1M[which(efly_male_noshape$Zone=="COSK")],t2M[which(efly_male_noshape$Zone=="COSK")])), centre = c(mean(t1meansM[8]), mean(t2meansM[8]))), col=rgb(0,0.390625,0,0.4), lty=2)
+
+
+
+##plots----
+
+
+##No shape----
+
+HPM_emean_noshape<-c(ciM_noshape_CH$post.medians[1,1], ciM_noshape_CO$post.medians[1,1])
+HPM_elow_noshape<-c(ciM_noshape_CH$post.medians[1,2], ciM_noshape_CO$post.medians[1,2])
+HPM_ehigh_noshape<-c(ciM_noshape_CH$post.medians[1,3], ciM_noshape_CO$post.medians[1,3])
+HPM_eHP_noshape<-c("Ancestral", "Derived")
+plot_df_HPM_noshape<-data.frame(HPM_eHP_noshape, HPM_emean_noshape, HPM_elow_noshape, HPM_ehigh_noshape)
+ZM_ePatry<-c("Sympatric", "Sympatric", "Allopatric", "Allopatric", "Allopatric", "Sympatric", "Allopatric", "Sympatric")
+ZM_emean_noshape<-c(ciM_noshape_CHES$post.medians[1,1],ciM_noshape_CHSK$post.medians[1,1],ciM_noshape_CHST$post.medians[1,1],ciM_noshape_CHFI$post.medians[1,1],ciM_noshape_COGE$post.medians[1,1],ciM_noshape_COSK$post.medians[1,1],ciM_noshape_COLI$post.medians[1,1], ciM_noshape_COES$post.medians[1,1])
+ZM_elow_noshape<-c(ciM_noshape_CHES$post.medians[1,2],ciM_noshape_CHSK$post.medians[1,2],ciM_noshape_CHST$post.medians[1,2],ciM_noshape_CHFI$post.medians[1,2],ciM_noshape_COGE$post.medians[1,2],ciM_noshape_COSK$post.medians[1,2],ciM_noshape_COLI$post.medians[1,2], ciM_noshape_COES$post.medians[1,2])
+ZM_ehigh_noshape<-c(ciM_noshape_CHES$post.medians[1,3],ciM_noshape_CHSK$post.medians[1,3],ciM_noshape_CHST$post.medians[1,3],ciM_noshape_CHFI$post.medians[1,3],ciM_noshape_COGE$post.medians[1,3],ciM_noshape_COSK$post.medians[1,3],ciM_noshape_COLI$post.medians[1,3], ciM_noshape_COES$post.medians[1,3])
+ZM_eHP_noshape<-c("Ancestral", "Ancestral", "Ancestral", "Ancestral", "Derived", "Derived", "Derived", "Derived")
+ZM_eZ_noshape<-c("CHES", "CHSK", "CHST", "CHFI", "COGE", "COSK", "COLI", "COES")
+ZM_eZ_noshape<-revalue(ZM_eZ_noshape, c("CHST"="1","CHFI"="2","CHSK"="3","CHES"="4","COES"="5","COSK"="6","COLI"="7","COGE"="8"))
+
+plot_df_ZM_noshape<-data.frame(ZM_eHP_noshape, ZM_eZ_noshape, ZM_emean_noshape, ZM_elow_noshape, ZM_ehigh_noshape)
+medians_noshapeM <- data.frame(ZM_eHP_noshape=c('Ancestral','Derived'), xval=c(ciM_noshape_CH$post.medians[1,1],ciM_noshape_CO$post.medians[1,1]))
+lows_noshapeM<-data.frame(ZM_eHP_noshape=c('Ancestral','Derived'), xval=c(ciM_noshape_CH$post.medians[1,2],ciM_noshape_CO$post.medians[1,2]))
+highs_noshapeM<-data.frame(ZM_eHP_noshape=c('Ancestral','Derived'), xval=c(ciM_noshape_CH$post.medians[1,3],ciM_noshape_CO$post.medians[1,3]))
+
+
+
+evolv_zM_plot_noshape<-ggplot(plot_df_ZM_noshape, aes(x=ZM_eZ_noshape, y=ZM_emean_noshape, colour=ZM_eHP_noshape)) + 
+  geom_errorbar(aes(ymin=ZM_elow_noshape, ymax=ZM_ehigh_noshape, width=.4)) +
+  ggtitle('                                           Male evolvability')+
+  ylab("Evolvability") +
+  xlab(" ") + 
+  facet_grid(.~ZM_eHP_noshape, scales='free') +
+  scale_color_manual(values = c("darkviolet","darkgreen")) + 
+  scale_x_discrete(labels = c("1" = "CHST", "2" = "CHFI", "3" = "CHSK", "4"="CHES", "5" = "COES", "6" = "COSK", "7" = "COLI", "8"="COGE"))+
+  geom_hline(data=medians_noshapeM, aes(yintercept=xval), size=0.5) +
+  geom_hline(data=lows_noshapeM, aes(yintercept=xval), linetype="dashed", size=0.5) +
+  geom_hline(data=highs_noshapeM, aes(yintercept=xval), linetype="dashed", size=0.5) +
+  geom_point(aes(x=ZM_eZ_noshape, y=ZM_emean_noshape, colour=ZM_eHP_noshape,shape=ZM_ePatry),size=5) +
+  theme(plot.title=element_text(face="bold", size="16"), axis.text.x = element_text(angle = 0), legend.position = "none", 
+        legend.title=element_blank(), strip.background=element_rect(fill="white"), 
+        panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"), 
+        legend.text=element_text(size=14), axis.title=element_text(size=16,face="bold"),
+        legend.spacing.y = unit(0.1, 'mm'),axis.text=element_text(size=14))  +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        strip.text.x = element_text(size=14,),
+        strip.text.y = element_text(size=14,)) 
+evolv_zM_plot_noshape
+
